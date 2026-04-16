@@ -21,7 +21,7 @@ type PricingCard = {
 const studentPlans: PricingCard[] = [
   {
     tier: "Free",
-    price: "$0",
+    price: "P0",
     unit: "/month",
     tagline: "Forever free. No credit card.",
     cta: "Get Started Free",
@@ -35,7 +35,7 @@ const studentPlans: PricingCard[] = [
   },
   {
     tier: "Plus",
-    price: "$19",
+    price: "P19",
     unit: "/month",
     tagline: "Billed monthly. Cancel anytime.",
     cta: "Start Free Trial",
@@ -52,7 +52,7 @@ const studentPlans: PricingCard[] = [
   },
   {
     tier: "Pro",
-    price: "$39",
+    price: "P39",
     unit: "/month",
     tagline: "For committed learners.",
     cta: "Get Pro Access",
@@ -84,7 +84,7 @@ const tutorPlans: PricingCard[] = [
   {
     tier: "Pro",
     price: "90%",
-    tagline: "Revenue share + $29/mo.",
+    tagline: "Revenue share + P29/mo.",
     cta: "Apply for Pro",
     ctaVariant: "primary",
     href: "/auth/signup",

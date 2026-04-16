@@ -76,8 +76,8 @@ export default function ParentPaymentsPage() {
           <div>
             <p className="text-xs text-neutral-500">Total Spent</p>
             <p className="text-xl font-bold text-neutral-900">
-              R
-              {totalSpent.toLocaleString("en-ZA", {
+              P
+              {totalSpent.toLocaleString("en-BW", {
                 minimumFractionDigits: 2,
               })}
             </p>
@@ -182,8 +182,8 @@ export default function ParentPaymentsPage() {
                         </span>
                       </td>
                       <td className="px-5 py-3.5 text-right font-semibold text-neutral-900 whitespace-nowrap">
-                        R
-                        {parseFloat(tx.amount).toLocaleString("en-ZA", {
+                        P
+                        {parseFloat(tx.amount).toLocaleString("en-BW", {
                           minimumFractionDigits: 2,
                         })}
                       </td>
@@ -216,8 +216,8 @@ export default function ParentPaymentsPage() {
                       {TYPE_LABELS[tx.content_type] ?? tx.content_type}
                     </span>
                     <span className="font-semibold text-neutral-900">
-                      R
-                      {parseFloat(tx.amount).toLocaleString("en-ZA", {
+                      P
+                      {parseFloat(tx.amount).toLocaleString("en-BW", {
                         minimumFractionDigits: 2,
                       })}
                     </span>
