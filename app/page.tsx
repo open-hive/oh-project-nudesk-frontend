@@ -1,7 +1,7 @@
 import { HeroSection, StatsBar } from "@/components/home/hero-section";
-import { CategoriesSection } from "@/components/home/categories-section";
-import { CoursesSection } from "@/components/home/courses-section";
+import { HowItWorksSection } from "@/components/home/how-it-works-section";
 import { FeaturesSection } from "@/components/home/features-section";
+import { CoursesSection } from "@/components/home/courses-section";
 import { InstructorsSection } from "@/components/home/instructors-section";
 import { TestimonialsSection } from "@/components/home/testimonials-section";
 import { CtaSection } from "@/components/home/cta-section";
@@ -15,9 +15,9 @@ export default function HomePage() {
       <main className="flex-1">
         <HeroSection />
         <StatsBar />
-        <CategoriesSection />
-        <CoursesSection />
+        <HowItWorksSection />
         <FeaturesSection />
+        <CoursesSection />
         <InstructorsSection />
         <TestimonialsSection />
         <CtaSection />

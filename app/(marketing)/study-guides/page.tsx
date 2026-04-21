@@ -56,8 +56,10 @@ export default function StudyGuidesPage() {
     if (!next) return;
     setLoadingMore(true);
     try {
-      const url = next.replace(/^https?:\/\/[^/]+/, "");
-      const data = await apiFetch<PaginatedResponse<StudyGuide>>(url);
+      const url = new URL(next);
+      const path = url.pathname + url.search;
+      const endpoint = path.replace(/^\/apis/, "");
+      const data = await apiFetch<PaginatedResponse<StudyGuide>>(endpoint);
       setGuides((prev) => [...prev, ...data.results]);
       setNext(data.next);
     } catch {

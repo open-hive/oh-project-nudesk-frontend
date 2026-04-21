@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Search, Download, Users } from "lucide-react";
+import { Search, Download, Users, Edit2, Key } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Modal, ModalHead, ModalBody, ModalFoot } from "@/components/ui/modal";
 import { useAuth } from "@/lib/auth-context";
 import { apiFetch, ApiError } from "@/lib/api";
@@ -48,6 +49,15 @@ export default function AdminUsersPage() {
   >([]);
   const [parentChildrenLoading, setParentChildrenLoading] = useState(false);
 
+  // Edit mode state
+  const [editMode, setEditMode] = useState(false);
+  const [editForm, setEditForm] = useState({ email: "", username: "", first_name: "", last_name: "", phone: "", bio: "" });
+
+  // Password reset state
+  const [passwordResetMode, setPasswordResetMode] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
   const fetchUsers = useCallback(async () => {
     if (!tokens) return;
     setLoading(true);
@@ -80,11 +90,23 @@ export default function AdminUsersPage() {
       return;
     }
     setParentChildrenLoading(true);
-    apiFetch<{ stats: { children: typeof parentChildren } }>(
+    apiFetch<{ stats: { children: typeof parentChildren }; profile?: { first_name: string; last_name: string; phone: string; bio: string } }>(
       `/admins/users/${selected.id}/`,
       { token: tokens.access }
     )
-      .then((data) => setParentChildren(data.stats?.children ?? []))
+      .then((data) => {
+        setParentChildren(data.stats?.children ?? []);
+        // Update edit form with full profile data
+        const profile = data.profile || {};
+        setEditForm({
+          email: selected.email,
+          username: selected.username,
+          first_name: profile.first_name || selected.first_name || "",
+          last_name: profile.last_name || selected.last_name || "",
+          phone: profile.phone || "",
+          bio: profile.bio || "",
+        });
+      })
       .catch(() => setParentChildren([]))
       .finally(() => setParentChildrenLoading(false));
   }, [selected, tokens]);
@@ -123,6 +145,54 @@ export default function AdminUsersPage() {
     }
   }
 
+  async function handleUpdateUser() {
+    if (!tokens || !selected) return;
+    setActionLoading(selected.id);
+    try {
+      await apiFetch(`/admins/users/${selected.id}/update/`, {
+        method: "PATCH",
+        token: tokens.access,
+        body: JSON.stringify(editForm),
+      });
+      alert("User updated successfully!");
+      setEditMode(false);
+      await fetchUsers();
+      setSelected(null);
+    } catch (e) {
+      alert(e instanceof ApiError ? String(e.body.detail ?? "Failed to update user") : "Failed to update user");
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function handleResetPassword() {
+    if (!tokens || !selected) return;
+    if (newPassword.length < 6) {
+      alert("Password must be at least 6 characters long");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      alert("Passwords do not match");
+      return;
+    }
+    setActionLoading(selected.id);
+    try {
+      await apiFetch(`/admins/users/${selected.id}/reset-password/`, {
+        method: "POST",
+        token: tokens.access,
+        body: JSON.stringify({ password: newPassword }),
+      });
+      alert("Password reset successfully!");
+      setPasswordResetMode(false);
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (e) {
+      alert(e instanceof ApiError ? String(e.body.detail ?? "Failed to reset password") : "Failed to reset password");
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
   function handleExport() {
     if (!tokens) return;
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/admins/users/export/`, {
@@ -138,6 +208,26 @@ export default function AdminUsersPage() {
         URL.revokeObjectURL(url);
       })
       .catch(() => alert("Export failed"));
+  }
+
+  function startEdit() {
+    if (!selected) return;
+    setEditForm({
+      email: selected.email,
+      username: selected.username,
+      first_name: selected.first_name || "",
+      last_name: selected.last_name || "",
+      phone: "",
+      bio: "",
+    });
+    setEditMode(true);
+  }
+
+  function cancelEdit() {
+    setEditMode(false);
+    setPasswordResetMode(false);
+    setNewPassword("");
+    setConfirmPassword("");
   }
 
   return (
@@ -261,101 +351,214 @@ export default function AdminUsersPage() {
       </div>
 
       {/* User Detail Modal */}
-      <Modal open={!!selected} onClose={() => setSelected(null)} size="sm">
+      <Modal open={!!selected} onClose={() => { setSelected(null); cancelEdit(); }} size="sm">
         {selected && (
           <>
-            <ModalHead title={getDisplayName(selected)} subtitle={selected.email} onClose={() => setSelected(null)} />
+            <ModalHead 
+              title={editMode ? "Edit User" : passwordResetMode ? "Reset Password" : getDisplayName(selected)} 
+              subtitle={editMode || passwordResetMode ? selected.email : undefined} 
+              onClose={() => { setSelected(null); cancelEdit(); }} 
+            />
             <ModalBody>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <div className="text-xs text-neutral-400 mb-0.5">Username</div>
-                  <div className="font-medium">{selected.username}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-neutral-400 mb-0.5">Role</div>
-                  <Badge variant={roleColors[selected.role] ?? "neutral"}>
-                    {selected.role.charAt(0).toUpperCase() + selected.role.slice(1)}
-                  </Badge>
-                </div>
-                <div>
-                  <div className="text-xs text-neutral-400 mb-0.5">Email Verified</div>
-                  <Badge variant={selected.is_email_verified ? "green" : "amber"}>
-                    {selected.is_email_verified ? "Yes" : "No"}
-                  </Badge>
-                </div>
-                <div>
-                  <div className="text-xs text-neutral-400 mb-0.5">Profile Complete</div>
-                  <Badge variant={selected.is_profile_complete ? "green" : "amber"}>
-                    {selected.is_profile_complete ? "Yes" : "No"}
-                  </Badge>
-                </div>
-                {selected.role === "tutor" && (
+              {editMode ? (
+                <div className="flex flex-col gap-3">
                   <div>
-                    <div className="text-xs text-neutral-400 mb-0.5">Approved</div>
-                    <Badge variant={selected.is_approved ? "green" : "amber"}>
-                      {selected.is_approved ? "Yes" : "No"}
-                    </Badge>
+                    <label className="block text-xs text-neutral-500 mb-1">Email</label>
+                    <Input 
+                      value={editForm.email} 
+                      onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} 
+                      placeholder="user@example.com"
+                    />
                   </div>
-                )}
-                <div>
-                  <div className="text-xs text-neutral-400 mb-0.5">Status</div>
-                  <Badge variant={selected.is_active ? "green" : "red"}>
-                    {selected.is_active ? "Active" : "Suspended"}
-                  </Badge>
+                  <div>
+                    <label className="block text-xs text-neutral-500 mb-1">Username</label>
+                    <Input 
+                      value={editForm.username} 
+                      onChange={(e) => setEditForm({ ...editForm, username: e.target.value })} 
+                      placeholder="username"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-neutral-500 mb-1">First Name</label>
+                      <Input 
+                        value={editForm.first_name} 
+                        onChange={(e) => setEditForm({ ...editForm, first_name: e.target.value })} 
+                        placeholder="John"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-neutral-500 mb-1">Last Name</label>
+                      <Input 
+                        value={editForm.last_name} 
+                        onChange={(e) => setEditForm({ ...editForm, last_name: e.target.value })} 
+                        placeholder="Doe"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-neutral-500 mb-1">Phone</label>
+                    <Input 
+                      value={editForm.phone} 
+                      onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} 
+                      placeholder="+1234567890"
+                    />
+                  </div>
+                  <div>
+                    <label className="block  text-xs text-neutral-500 mb-1">Bio</label>
+                    <textarea 
+                      value={editForm.bio} 
+                      onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })} 
+                      placeholder="Brief bio..."
+                      className="w-full p-2 text-sm border-[1.5px] border-neutral-200 rounded-xl bg-white resize-none focus:outline-none focus:border-violet-600 focus:ring-2 focus:ring-violet-600/10"
+                      rows={3}
+                    />
+                  </div>
                 </div>
-                <div className="col-span-2">
-                  <div className="text-xs text-neutral-400 mb-0.5">Joined</div>
-                  <div className="font-medium">
-                    {new Date(selected.date_joined).toLocaleDateString("en-US", {
-                      month: "long",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
+              ) : passwordResetMode ? (
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <label className="block text-xs text-neutral-500 mb-1">New Password</label>
+                    <Input 
+                      type="password"
+                      value={newPassword} 
+                      onChange={(e) => setNewPassword(e.target.value)} 
+                      placeholder="Enter new password"
+                    />
                   </div>
+                  <div>
+                    <label className="block text-xs text-neutral-500 mb-1">Confirm Password</label>
+                    <Input 
+                      type="password"
+                      value={confirmPassword} 
+                      onChange={(e) => setConfirmPassword(e.target.value)} 
+                      placeholder="Confirm new password"
+                    />
+                  </div>
+                  <p className="text-xs text-neutral-500">Password must be at least 6 characters long.</p>
                 </div>
-              </div>
-              {selected.role === "parent" && (
-                <div className="mt-4">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">
-                    <Users className="w-3.5 h-3.5" /> Linked Children
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <div className="text-xs text-neutral-400 mb-0.5">Username</div>
+                      <div className="font-medium">{selected.username}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-neutral-400 mb-0.5">Role</div>
+                      <Badge variant={roleColors[selected.role] ?? "neutral"}>
+                        {selected.role.charAt(0).toUpperCase() + selected.role.slice(1)}
+                      </Badge>
+                    </div>
+                    <div>
+                      <div className="text-xs text-neutral-400 mb-0.5">Email Verified</div>
+                      <Badge variant={selected.is_email_verified ? "green" : "amber"}>
+                        {selected.is_email_verified ? "Yes" : "No"}
+                      </Badge>
+                    </div>
+                    <div>
+                      <div className="text-xs text-neutral-400 mb-0.5">Profile Complete</div>
+                      <Badge variant={selected.is_profile_complete ? "green" : "amber"}>
+                        {selected.is_profile_complete ? "Yes" : "No"}
+                      </Badge>
+                    </div>
+                    {selected.role === "tutor" && (
+                      <div>
+                        <div className="text-xs text-neutral-400 mb-0.5">Approved</div>
+                        <Badge variant={selected.is_approved ? "green" : "amber"}>
+                          {selected.is_approved ? "Yes" : "No"}
+                        </Badge>
+                      </div>
+                    )}
+                    <div>
+                      <div className="text-xs text-neutral-400 mb-0.5">Status</div>
+                      <Badge variant={selected.is_active ? "green" : "red"}>
+                        {selected.is_active ? "Active" : "Suspended"}
+                      </Badge>
+                    </div>
+                    <div className="col-span-2">
+                      <div className="text-xs text-neutral-400 mb-0.5">Joined</div>
+                      <div className="font-medium">
+                        {new Date(selected.date_joined).toLocaleDateString("en-US", {
+                          month: "long",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </div>
+                    </div>
                   </div>
-                  {parentChildrenLoading ? (
-                    <div className="text-xs text-neutral-400 py-2">Loading…</div>
-                  ) : parentChildren.length === 0 ? (
-                    <div className="text-xs text-neutral-400 py-2">No active links.</div>
-                  ) : (
-                    <div className="flex flex-col gap-1.5">
-                      {parentChildren.map((child) => (
-                        <div key={child.id} className="flex items-center gap-2.5 px-3 py-2 bg-neutral-50 rounded-xl border border-neutral-200">
-                          <div className="w-6 h-6 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-[.65rem] font-bold flex-shrink-0">
-                            {child.first_name ? child.first_name[0].toUpperCase() : child.email[0].toUpperCase()}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="text-[.8rem] font-semibold truncate">
-                              {child.first_name || child.last_name ? `${child.first_name} ${child.last_name}`.trim() : child.email}
+                  {selected.role === "parent" && (
+                    <div className="mt-4">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">
+                        <Users className="w-3.5 h-3.5" /> Linked Children
+                      </div>
+                      {parentChildrenLoading ? (
+                        <div className="text-xs text-neutral-400 py-2">Loading…</div>
+                      ) : parentChildren.length === 0 ? (
+                        <div className="text-xs text-neutral-400 py-2">No active links.</div>
+                      ) : (
+                        <div className="flex flex-col gap-1.5">
+                          {parentChildren.map((child) => (
+                            <div key={child.id} className="flex items-center gap-2.5 px-3 py-2 bg-neutral-50 rounded-xl border border-neutral-200">
+                              <div className="w-6 h-6 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-[.65rem] font-bold flex-shrink-0">
+                                {child.first_name ? child.first_name[0].toUpperCase() : child.email[0].toUpperCase()}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-[.8rem] font-semibold truncate">
+                                  {child.first_name || child.last_name ? `${child.first_name} ${child.last_name}`.trim() : child.email}
+                                </div>
+                                <div className="text-[.7rem] text-neutral-500 truncate">{child.email}</div>
+                              </div>
                             </div>
-                            <div className="text-[.7rem] text-neutral-500 truncate">{child.email}</div>
-                          </div>
+                          ))}
                         </div>
-                      ))}
+                      )}
                     </div>
                   )}
-                </div>
+                </>
               )}
             </ModalBody>
             <ModalFoot>
-              {selected.is_active ? (
-                <Button variant="danger-ghost" size="sm" loading={actionLoading === selected.id} onClick={() => handleSuspend(selected)}>
-                  Suspend
-                </Button>
+              {editMode ? (
+                <>
+                  <Button variant="primary" size="sm" loading={actionLoading === selected.id} onClick={handleUpdateUser}>
+                    Save Changes
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={cancelEdit}>
+                    Cancel
+                  </Button>
+                </>
+              ) : passwordResetMode ? (
+                <>
+                  <Button variant="primary" size="sm" loading={actionLoading === selected.id} onClick={handleResetPassword}>
+                    Reset Password
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={cancelEdit}>
+                    Cancel
+                  </Button>
+                </>
               ) : (
-                <Button variant="success-ghost" size="sm" loading={actionLoading === selected.id} onClick={() => handleReinstate(selected)}>
-                  Reinstate
-                </Button>
+                <>
+                  <Button variant="ghost" size="sm" icon={Edit2} onClick={startEdit}>
+                    Edit User
+                  </Button>
+                  <Button variant="ghost" size="sm" icon={Key} onClick={() => setPasswordResetMode(true)}>
+                    Reset Password
+                  </Button>
+                  {selected.is_active ? (
+                    <Button variant="danger-ghost" size="sm" loading={actionLoading === selected.id} onClick={() => handleSuspend(selected)}>
+                      Suspend
+                    </Button>
+                  ) : (
+                    <Button variant="success-ghost" size="sm" loading={actionLoading === selected.id} onClick={() => handleReinstate(selected)}>
+                      Reinstate
+                    </Button>
+                  )}
+                  <Button variant="secondary" size="sm" onClick={() => setSelected(null)}>
+                    Close
+                  </Button>
+                </>
               )}
-              <Button variant="secondary" size="sm" onClick={() => setSelected(null)}>
-                Close
-              </Button>
             </ModalFoot>
           </>
         )}

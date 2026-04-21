@@ -57,8 +57,10 @@ export default function CoursesPage() {
     if (!next) return;
     setLoadingMore(true);
     try {
-      const url = next.replace(/^https?:\/\/[^/]+/, "");
-      const data = await apiFetch<PaginatedResponse<Course>>(url);
+      const url = new URL(next);
+      const path = url.pathname + url.search;
+      const endpoint = path.replace(/^\/apis/, "");
+      const data = await apiFetch<PaginatedResponse<Course>>(endpoint);
       setCourses((prev) => [...prev, ...data.results]);
       setNext(data.next);
     } catch {

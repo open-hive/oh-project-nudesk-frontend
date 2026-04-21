@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import React, { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,7 +43,6 @@ export default function TutorContentPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [wizardStep, setWizardStep] = useState(1);
-  const [moduleInputs, setModuleInputs] = useState([""]);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     title: "",
@@ -104,10 +103,13 @@ export default function TutorContentPage() {
   const [moduleSaving, setModuleSaving] = useState(false);
   const moduleFileRef = useRef<HTMLInputElement>(null);
   const [moduleFile, setModuleFile] = useState<File | null>(null);
+  const videoFileRef = useRef<HTMLInputElement>(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [draftQuizQuestions, setDraftQuizQuestions] = useState<{ text: string; explanation: string; answers: { text: string; is_correct: boolean }[] }[]>([]);
   const [moduleForm, setModuleForm] = useState({
     title: "",
     description: "",
-    content_type: "video",
+    content_types: ["video"] as string[],
     content_url: "",
     duration_minutes: "",
   });
@@ -207,11 +209,10 @@ export default function TutorContentPage() {
       .catch(() => {});
   }, [createOpen, guideCreateOpen, scheduleOpen]);
 
-  const stepLabels = ["Course Details", "Add Modules", "Set Pricing", "Review & Submit"];
+  const stepLabels = ["Course Details", "Set Pricing", "Review & Submit"];
 
   function closeWizard() {
     setWizardStep(1);
-    setModuleInputs([""]);
     setForm({ title: "", description: "", category: "", is_free: true, price: "" });
     setFormErrors({});
     setCoverImage(null);
@@ -227,8 +228,6 @@ export default function TutorContentPage() {
       if (!form.description.trim()) errors.description = "Description is required.";
       if (!form.category) errors.category = "Category is required.";
     } else if (step === 2) {
-      if (!moduleInputs.some((t) => t.trim())) errors.modules = "Add at least one module.";
-    } else if (step === 3) {
       if (!form.is_free && (!form.price || Number(form.price) <= 0))
         errors.price = "Price must be greater than 0.";
     }
@@ -238,14 +237,14 @@ export default function TutorContentPage() {
 
   async function handleWizardNext() {
     if (!validateStep(wizardStep)) return;
-    if (wizardStep < 4) {
+    if (wizardStep < 3) {
       setWizardStep(wizardStep + 1);
       return;
     }
-    await saveCourse(true);
+    await saveCourse();
   }
 
-  async function saveCourse(submit: boolean) {
+  async function saveCourse() {
     if (!tokens) return;
     setSaving(true);
     try {
@@ -256,28 +255,8 @@ export default function TutorContentPage() {
       fd.append("is_free", String(form.is_free));
       fd.append("price", form.is_free ? "0.00" : form.price);
       if (coverImage) fd.append("cover_image", coverImage);
-      const course = await apiUpload<TutorCourse>("/courses/my-courses/", fd, { token: tokens.access });
-      const validModules = moduleInputs.filter((t) => t.trim());
-      for (let i = 0; i < validModules.length; i++) {
-        await apiFetch(`/courses/my-courses/${course.slug}/modules/`, {
-          method: "POST",
-          token: tokens.access,
-          body: JSON.stringify({
-            title: validModules[i].trim(),
-            content_type: "video",
-            order: i + 1,
-          }),
-        });
-      }
-      if (submit) {
-        await apiFetch(`/courses/my-courses/${course.slug}/submit/`, {
-          method: "POST",
-          token: tokens.access,
-        });
-        toast.success("Course submitted for review!");
-      } else {
-        toast.success("Course saved as draft!");
-      }
+      await apiUpload<TutorCourse>("/courses/my-courses/", fd, { token: tokens.access });
+      toast.success("Course created! Add modules to submit for review.");
       closeWizard();
       fetchCourses();
     } catch (e) {
@@ -398,10 +377,13 @@ export default function TutorContentPage() {
 
   function openNewModule() {
     setEditingModule(null);
-    setModuleForm({ title: "", description: "", content_type: "video", content_url: "", duration_minutes: "" });
+    setModuleForm({ title: "", description: "", content_types: ["video"], content_url: "", duration_minutes: "" });
     setModuleFormErrors({});
     setModuleFile(null);
     if (moduleFileRef.current) moduleFileRef.current.value = "";
+    setVideoFile(null);
+    if (videoFileRef.current) videoFileRef.current.value = "";
+    setDraftQuizQuestions([]);
     setModuleEditorOpen(true);
   }
 
@@ -410,14 +392,17 @@ export default function TutorContentPage() {
     setModuleForm({
       title: mod.title,
       description: mod.description,
-      content_type: mod.content_type,
+      content_types: mod.content_type ? mod.content_type.split(",").filter(Boolean) : ["video"],
       content_url: mod.content_url,
       duration_minutes: mod.duration_minutes && mod.duration_minutes > 0 ? String(mod.duration_minutes) : "",
     });
     setModuleFormErrors({});
     setModuleFile(null);
     if (moduleFileRef.current) moduleFileRef.current.value = "";
-    if (mod.content_type === "quiz" && tokens && manageCourse) {
+    setVideoFile(null);
+    if (videoFileRef.current) videoFileRef.current.value = "";
+    setDraftQuizQuestions([]);
+    if (mod.content_type.includes("quiz") && tokens && manageCourse) {
       setQuizLoading(true);
       apiFetch<QuizQuestion[]>(`/courses/my-courses/${manageCourse.slug}/modules/${mod.id}/quiz/`, { token: tokens.access })
         .then((qs) => setQuizQuestions(qs))
@@ -431,9 +416,12 @@ export default function TutorContentPage() {
     setModuleEditorOpen(false);
     setEditingModule(null);
     setModuleFile(null);
-    setModuleFormErrors({});
     if (moduleFileRef.current) moduleFileRef.current.value = "";
+    setVideoFile(null);
+    if (videoFileRef.current) videoFileRef.current.value = "";
+    setModuleFormErrors({});
     setQuizQuestions([]);
+    setDraftQuizQuestions([]);
     setQuizEditorOpen(false);
     setEditingQuestion(null);
   }
@@ -441,9 +429,9 @@ export default function TutorContentPage() {
   function validateModuleForm(): boolean {
     const errors: Record<string, string> = {};
     if (!moduleForm.title.trim()) errors.title = "Title is required.";
-    if (moduleForm.content_type === "video" && !moduleForm.content_url.trim())
-      errors.content_url = "A video URL is required.";
-    if (moduleForm.content_type === "document" && !editingModule && !moduleFile)
+    if (moduleForm.content_types.includes("video") && !moduleForm.content_url.trim() && !videoFile)
+      errors.content_url = "Provide a video URL or upload an MP4 file.";
+    if (moduleForm.content_types.includes("document") && !editingModule && !moduleFile)
       errors.file = "Please upload a file for this module.";
     setModuleFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -472,13 +460,31 @@ export default function TutorContentPage() {
   }
 
   async function handleSaveQuestion() {
-    if (!tokens || !manageCourse || !editingModule) return;
+    if (!tokens || !manageCourse) return;
     setQuestionFormErrors("");
     const filledAnswers = questionForm.answers.filter((a) => a.text.trim());
     if (!questionForm.text.trim()) { setQuestionFormErrors("Question text is required."); return; }
     if (filledAnswers.length < 2) { setQuestionFormErrors("At least 2 answer choices are required."); return; }
     const correctCount = filledAnswers.filter((a) => a.is_correct).length;
     if (correctCount !== 1) { setQuestionFormErrors("Exactly one answer must be marked as correct."); return; }
+
+    // New module (not yet saved) — store as draft
+    if (!editingModule) {
+      const draft = {
+        text: questionForm.text.trim(),
+        explanation: questionForm.explanation.trim(),
+        answers: filledAnswers.map((a) => ({ text: a.text.trim(), is_correct: a.is_correct })),
+      };
+      if (editingQuestion) {
+        // editingQuestion here holds a draft index stored in id field as negative
+        setDraftQuizQuestions((prev) => prev.map((q, i) => i === -(editingQuestion.id + 1) ? draft : q));
+      } else {
+        setDraftQuizQuestions((prev) => [...prev, draft]);
+      }
+      setQuizEditorOpen(false);
+      setEditingQuestion(null);
+      return;
+    }
 
     setQuestionSaving(true);
     try {
@@ -541,15 +547,20 @@ export default function TutorContentPage() {
       const nextOrder = courseModules.length + 1;
 
       let saved: CourseModule;
-      if (moduleForm.content_type === "document" && (moduleFile || isEdit)) {
+      const contentTypeStr = moduleForm.content_types.join(",");
+      const needsFormData = (moduleForm.content_types.includes("document") && (moduleFile || isEdit)) ||
+                            (moduleForm.content_types.includes("video") && videoFile);
+
+      if (needsFormData) {
         const fd = new FormData();
         fd.append("title", moduleForm.title.trim());
         fd.append("description", moduleForm.description.trim());
-        fd.append("content_type", "document");
+        fd.append("content_type", contentTypeStr);
         if (moduleForm.content_url.trim()) fd.append("content_url", moduleForm.content_url.trim());
         if (moduleForm.duration_minutes) fd.append("duration_minutes", moduleForm.duration_minutes);
         if (!isEdit) fd.append("order", String(nextOrder));
         if (moduleFile) fd.append("file", moduleFile);
+        if (videoFile) fd.append("file", videoFile);
         saved = await apiUpload<CourseModule>(
           isEdit
             ? `/courses/my-courses/${manageCourse.slug}/modules/${editingModule!.id}/`
@@ -568,13 +579,30 @@ export default function TutorContentPage() {
             body: JSON.stringify({
               title: moduleForm.title.trim(),
               description: moduleForm.description.trim(),
-              content_type: moduleForm.content_type,
+              content_type: contentTypeStr,
               content_url: moduleForm.content_url.trim(),
               duration_minutes: moduleForm.duration_minutes ? Number(moduleForm.duration_minutes) : 0,
               ...(isEdit ? {} : { order: nextOrder }),
             }),
           }
         );
+      }
+
+      // Save draft quiz questions for new quiz modules
+      if (!isEdit && moduleForm.content_types.includes("quiz") && draftQuizQuestions.length > 0) {
+        for (let i = 0; i < draftQuizQuestions.length; i++) {
+          const dq = draftQuizQuestions[i];
+          await apiFetch(`/courses/my-courses/${manageCourse.slug}/modules/${saved.id}/quiz/`, {
+            method: "POST",
+            token: tokens.access,
+            body: JSON.stringify({
+              text: dq.text,
+              explanation: dq.explanation,
+              order: i + 1,
+              answers: dq.answers.map((a, j) => ({ text: a.text, is_correct: a.is_correct, order: j + 1 })),
+            }),
+          });
+        }
       }
 
       if (isEdit) {
@@ -1094,15 +1122,24 @@ export default function TutorContentPage() {
                 <p className="text-sm text-neutral-400 text-center py-6">No modules yet. Add your first module below.</p>
               ) : (
                 courseModules.map((mod, i) => {
-                  const TypeIcon = mod.content_type === "video" ? Video : mod.content_type === "document" ? FileText : BookOpen;
+                  const types = mod.content_type ? mod.content_type.split(",").filter(Boolean) : ["video"];
+                  const typeIconMap: Record<string, React.ReactNode> = {
+                    video: <Video className="w-3 h-3" />,
+                    document: <FileText className="w-3 h-3" />,
+                    quiz: <HelpCircle className="w-3 h-3" />,
+                    reading: <BookOpen className="w-3 h-3" />,
+                  };
                   return (
                     <div key={mod.id} className="flex items-start gap-3 bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-3">
                       <span className="text-xs font-bold text-neutral-400 mt-0.5 w-5 shrink-0">{i + 1}.</span>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-semibold">{mod.title}</div>
-                        <div className="flex items-center gap-2 text-[.72rem] text-neutral-400 mt-0.5">
-                          <TypeIcon className="w-3 h-3" />
-                          <span className="capitalize">{mod.content_type}</span>
+                        <div className="flex items-center gap-2 text-[.72rem] text-neutral-400 mt-0.5 flex-wrap">
+                          {types.map((t) => (
+                            <span key={t} className="flex items-center gap-1 capitalize">
+                              {typeIconMap[t] ?? <BookOpen className="w-3 h-3" />}{t}
+                            </span>
+                          ))}
                           {mod.duration_minutes && mod.duration_minutes > 0 && (
                             <span>· {mod.duration_minutes} min</span>
                           )}
@@ -1173,20 +1210,25 @@ export default function TutorContentPage() {
               {moduleFormErrors.title && <p className="text-xs text-red-500 mt-1">{moduleFormErrors.title}</p>}
             </div>
 
-            {/* Content Type */}
+            {/* Content Types — multi-select */}
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">Content Type</label>
+              <label className="block text-sm font-medium text-neutral-700 mb-1">Content Type <span className="text-neutral-400 font-normal">(select all that apply)</span></label>
               <div className="flex gap-2">
                 {(["video", "reading", "document", "quiz"] as const).map((ct) => {
                   const Icon = ct === "video" ? Video : ct === "document" ? FileText : ct === "quiz" ? HelpCircle : BookOpen;
                   const labels: Record<string, string> = { video: "Video", reading: "Reading", document: "Document", quiz: "Quiz" };
+                  const isActive = moduleForm.content_types.includes(ct);
                   return (
                     <button
                       key={ct}
                       type="button"
                       onClick={() => {
-                        setModuleForm({ ...moduleForm, content_type: ct, content_url: "" });
-                        if (ct === "quiz" && editingModule && tokens && manageCourse && quizQuestions.length === 0) {
+                        const next = isActive
+                          ? moduleForm.content_types.filter((t) => t !== ct)
+                          : [...moduleForm.content_types, ct];
+                        if (next.length === 0) return; // must keep at least one
+                        setModuleForm({ ...moduleForm, content_types: next });
+                        if (ct === "quiz" && !isActive && editingModule && tokens && manageCourse && quizQuestions.length === 0) {
                           setQuizLoading(true);
                           apiFetch<QuizQuestion[]>(`/courses/my-courses/${manageCourse.slug}/modules/${editingModule.id}/quiz/`, { token: tokens.access })
                             .then((qs) => setQuizQuestions(qs))
@@ -1195,7 +1237,7 @@ export default function TutorContentPage() {
                         }
                       }}
                       className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border-[1.5px] text-sm font-semibold transition-colors ${
-                        moduleForm.content_type === ct
+                        isActive
                           ? "border-violet-600 bg-violet-50 text-violet-700"
                           : "border-neutral-200 text-neutral-500 hover:border-neutral-300"
                       }`}
@@ -1208,25 +1250,60 @@ export default function TutorContentPage() {
               </div>
             </div>
 
-            {/* Video URL */}
-            {moduleForm.content_type === "video" && (
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  Video URL <span className="text-neutral-400 font-normal">(YouTube, Vimeo, or direct)</span>
-                </label>
-                <Input
-                  type="url"
-                  placeholder="https://youtube.com/watch?v=..."
-                  value={moduleForm.content_url}
-                  error={!!moduleFormErrors.content_url}
-                  onChange={(e) => { setModuleForm({ ...moduleForm, content_url: e.target.value }); setModuleFormErrors((p) => ({ ...p, content_url: "" })); }}
-                />
-                {moduleFormErrors.content_url && <p className="text-xs text-red-500 mt-1">{moduleFormErrors.content_url}</p>}
+            {/* Video: URL + optional MP4 upload */}
+            {moduleForm.content_types.includes("video") && (
+              <div className="flex flex-col gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">
+                    Video URL <span className="text-neutral-400 font-normal">(YouTube, Vimeo, or direct link)</span>
+                  </label>
+                  <Input
+                    type="url"
+                    placeholder="https://youtube.com/watch?v=..."
+                    value={moduleForm.content_url}
+                    error={!!moduleFormErrors.content_url}
+                    onChange={(e) => { setModuleForm({ ...moduleForm, content_url: e.target.value }); setModuleFormErrors((p) => ({ ...p, content_url: "" })); }}
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-neutral-200" />
+                  <span className="text-xs text-neutral-400 font-medium">or upload MP4</span>
+                  <div className="flex-1 h-px bg-neutral-200" />
+                </div>
+                <div>
+                  <div
+                    onClick={() => videoFileRef.current?.click()}
+                    className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-5 cursor-pointer transition-colors ${
+                      moduleFormErrors.content_url ? "border-red-400 bg-red-50" : "border-neutral-200 bg-neutral-50 hover:border-violet-400 hover:bg-violet-50"
+                    }`}
+                  >
+                    <Upload className="w-5 h-5 text-neutral-400" />
+                    {videoFile ? (
+                      <span className="text-sm font-semibold text-violet-700">{videoFile.name}</span>
+                    ) : editingModule?.file && !videoFile ? (
+                      <span className="text-sm text-green-600">Current video attached — click to replace</span>
+                    ) : (
+                      <span className="text-sm text-neutral-500">Click to select an MP4 file</span>
+                    )}
+                    <input
+                      ref={videoFileRef}
+                      type="file"
+                      accept="video/mp4,video/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0] ?? null;
+                        setVideoFile(f);
+                        setModuleFormErrors((p) => ({ ...p, content_url: "" }));
+                      }}
+                    />
+                  </div>
+                  {moduleFormErrors.content_url && <p className="text-xs text-red-500 mt-1">{moduleFormErrors.content_url}</p>}
+                </div>
               </div>
             )}
 
             {/* Reading URL */}
-            {moduleForm.content_type === "reading" && (
+            {moduleForm.content_types.includes("reading") && (
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1">
                   External Link <span className="text-neutral-400 font-normal">(optional)</span>
@@ -1241,7 +1318,7 @@ export default function TutorContentPage() {
             )}
 
             {/* Document file upload */}
-            {moduleForm.content_type === "document" && (
+            {moduleForm.content_types.includes("document") && (
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1">
                   File <span className="text-neutral-400 font-normal">(PDF, DOCX, PPTX, etc.)</span>
@@ -1278,48 +1355,83 @@ export default function TutorContentPage() {
             )}
 
             {/* Quiz questions builder */}
-            {moduleForm.content_type === "quiz" && (
+            {moduleForm.content_types.includes("quiz") && (
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-sm font-medium text-neutral-700">Questions</label>
-                  {editingModule ? (
-                    <button
-                      type="button"
-                      onClick={() => openQuestionEditor()}
-                      className="flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700"
-                    >
-                      <Plus className="w-3 h-3" /> Add Question
-                    </button>
-                  ) : (
-                    <span className="text-xs text-neutral-400">Save the module first to add questions</span>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => openQuestionEditor()}
+                    className="flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700"
+                  >
+                    <Plus className="w-3 h-3" /> Add Question
+                  </button>
                 </div>
                 {quizLoading ? (
                   <div className="flex items-center justify-center py-6">
                     <Loader2 className="w-5 h-5 animate-spin text-violet-500" />
                   </div>
-                ) : quizQuestions.length === 0 ? (
+                ) : editingModule ? (
+                  quizQuestions.length === 0 ? (
+                    <div className="bg-neutral-50 border border-dashed border-neutral-200 rounded-xl p-5 text-center">
+                      <HelpCircle className="w-6 h-6 text-neutral-300 mx-auto mb-1" />
+                      <p className="text-sm text-neutral-400">No questions yet.</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {quizQuestions.map((q, i) => (
+                        <div key={q.id} className="flex items-start gap-3 bg-neutral-50 border border-neutral-200 rounded-xl px-3 py-2.5">
+                          <span className="mt-0.5 text-xs font-bold text-neutral-400 shrink-0">Q{i + 1}</span>
+                          <p className="flex-1 text-sm text-neutral-800 line-clamp-2">{q.text}</p>
+                          <span className="text-xs text-neutral-400 shrink-0">{q.answers.length} opts</span>
+                          <button
+                            type="button"
+                            onClick={() => openQuestionEditor(q)}
+                            className="p-1 text-neutral-400 hover:text-violet-600 transition-colors"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteQuestion(q.id)}
+                            className="p-1 text-neutral-400 hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                ) : draftQuizQuestions.length === 0 ? (
                   <div className="bg-neutral-50 border border-dashed border-neutral-200 rounded-xl p-5 text-center">
                     <HelpCircle className="w-6 h-6 text-neutral-300 mx-auto mb-1" />
-                    <p className="text-sm text-neutral-400">No questions yet.</p>
+                    <p className="text-sm text-neutral-400">No questions yet. Add some above.</p>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-2">
-                    {quizQuestions.map((q, i) => (
-                      <div key={q.id} className="flex items-start gap-3 bg-neutral-50 border border-neutral-200 rounded-xl px-3 py-2.5">
+                    {draftQuizQuestions.map((q, i) => (
+                      <div key={i} className="flex items-start gap-3 bg-neutral-50 border border-neutral-200 rounded-xl px-3 py-2.5">
                         <span className="mt-0.5 text-xs font-bold text-neutral-400 shrink-0">Q{i + 1}</span>
                         <p className="flex-1 text-sm text-neutral-800 line-clamp-2">{q.text}</p>
-                        <span className="text-xs text-neutral-400 shrink-0">{q.answers.length} opts</span>
+                        <span className="text-xs text-neutral-400 shrink-0">{q.answers.filter(a => a.text).length} opts</span>
                         <button
                           type="button"
-                          onClick={() => openQuestionEditor(q)}
+                          onClick={() => {
+                            const base = q.answers.slice(0, 4).map((a) => ({ text: a.text, is_correct: a.is_correct }));
+                            while (base.length < 4) base.push({ text: "", is_correct: false });
+                            setQuestionForm({ text: q.text, explanation: q.explanation, answers: base });
+                            setQuestionFormErrors("");
+                            // use negative index as fake id to identify draft
+                            setEditingQuestion({ id: -(i + 1), text: q.text, explanation: q.explanation, order: i + 1, answers: q.answers.map((a, j) => ({ id: j, text: a.text, is_correct: a.is_correct, order: j })) });
+                            setQuizEditorOpen(true);
+                          }}
                           className="p-1 text-neutral-400 hover:text-violet-600 transition-colors"
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDeleteQuestion(q.id)}
+                          onClick={() => setDraftQuizQuestions((prev) => prev.filter((_, j) => j !== i))}
                           className="p-1 text-neutral-400 hover:text-red-500 transition-colors"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -1449,13 +1561,13 @@ export default function TutorContentPage() {
       <Modal open={createOpen} onClose={closeWizard} size="lg">
         <ModalHead
           title="Create New Course"
-          subtitle={`Step ${wizardStep} of 4 — ${stepLabels[wizardStep - 1]}`}
+          subtitle={`Step ${wizardStep} of 3 — ${stepLabels[wizardStep - 1]}`}
           onClose={closeWizard}
         />
         <ModalBody>
           {/* Step indicator */}
           <div className="flex items-center justify-between mb-6 px-2">
-            {(["Details", "Modules", "Pricing", "Publish"] as const).map((label, i) => {
+            {(["Details", "Pricing", "Publish"] as const).map((label, i) => {
               const num = i + 1;
               const done = wizardStep > num;
               const active = wizardStep === num;
@@ -1561,48 +1673,8 @@ export default function TutorContentPage() {
             </div>
           )}
 
-          {/* Step 2: Modules */}
+          {/* Step 2: Pricing */}
           {wizardStep === 2 && (
-            <div className="flex flex-col gap-3">
-              <p className="text-sm text-neutral-500 mb-1">Add modules for your course. You can upload content after publishing.</p>
-              {formErrors.modules && <p className="text-xs text-red-500">{formErrors.modules}</p>}
-              {moduleInputs.map((title, i) => (
-                <div key={i} className="flex items-center gap-2 bg-neutral-50 border border-neutral-200 rounded-xl px-3 py-2">
-                  <span className="text-xs font-bold text-neutral-400 shrink-0 w-5">{i + 1}.</span>
-                  <input
-                    className="flex-1 bg-transparent text-sm outline-none placeholder:text-neutral-400"
-                    placeholder={`Module ${i + 1} title\u2026`}
-                    value={title}
-                    onChange={(e) => {
-                      const next = [...moduleInputs];
-                      next[i] = e.target.value;
-                      setModuleInputs(next);
-                      setFormErrors((p) => ({ ...p, modules: "" }));
-                    }}
-                  />
-                  {moduleInputs.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => setModuleInputs(moduleInputs.filter((_, j) => j !== i))}
-                      className="p-1 text-neutral-400 hover:text-red-500 transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={() => setModuleInputs([...moduleInputs, ""])}
-                className="flex items-center gap-1.5 text-sm font-semibold text-violet-600 hover:text-violet-700 self-start mt-1"
-              >
-                <Plus className="w-3.5 h-3.5" /> Add Module
-              </button>
-            </div>
-          )}
-
-          {/* Step 3: Pricing */}
-          {wizardStep === 3 && (
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-3">
                 <label className="flex items-center gap-2 text-sm font-medium text-neutral-700 cursor-pointer">
@@ -1647,23 +1719,19 @@ export default function TutorContentPage() {
             </div>
           )}
 
-          {/* Step 4: Review & Submit */}
-          {wizardStep === 4 && (
+          {/* Step 3: Review & Publish */}
+          {wizardStep === 3 && (
             <div className="text-center py-5">
               <div className="text-5xl mb-4">🚀</div>
-              <h4 className="text-lg font-bold mb-2">Ready to Submit?</h4>
+              <h4 className="text-lg font-bold mb-2">Ready to Create?</h4>
               <p className="text-sm text-neutral-500 mb-6 max-w-sm mx-auto">
-                Your course will be reviewed by our team within 24 hours. You&apos;ll be notified once it&apos;s live.
+                Your course draft will be created. Add modules before submitting for review.
               </p>
               <div className="inline-block text-left bg-neutral-50 border border-neutral-200 rounded-xl p-4">
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-2">
                     <Check className="w-3.5 h-3.5 text-green-600" />
                     <span className="text-sm">Course details filled in</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="w-3.5 h-3.5 text-green-600" />
-                    <span className="text-sm">{moduleInputs.filter((t) => t.trim()).length} module(s) created</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Check className="w-3.5 h-3.5 text-green-600" />
@@ -1693,12 +1761,12 @@ export default function TutorContentPage() {
             </div>
             <div className="flex gap-2">
               {wizardStep === 4 && (
-                <Button variant="secondary" size="sm" disabled={saving} onClick={() => saveCourse(false)}>
+                <Button variant="secondary" size="sm" disabled={saving} onClick={() => saveCourse()}>
                   Save as Draft
                 </Button>
               )}
               <Button variant="primary" size="sm" loading={saving} onClick={handleWizardNext}>
-                {wizardStep === 4 ? "🚀 Submit for Review" : "Continue →"}
+                {wizardStep === 3 ? "Create Course" : "Next →"}
               </Button>
             </div>
           </div>

@@ -94,8 +94,25 @@ export interface CourseModule {
   file: string | null;
   order: number;
   duration_minutes: number | null;
+  quiz_question_count?: number | null;
+  questions?: AdminQuizQuestion[] | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface AdminQuizAnswer {
+  id: number;
+  text: string;
+  is_correct: boolean;
+  order: number;
+}
+
+export interface AdminQuizQuestion {
+  id: number;
+  text: string;
+  explanation: string;
+  order: number;
+  answers: AdminQuizAnswer[];
 }
 
 export interface QuizAnswer {
@@ -296,6 +313,7 @@ export interface PendingStudyGuide {
   is_free: boolean;
   price: string;
   page_count: number;
+  file: string;
   status: string;
   created_at: string;
   updated_at: string;

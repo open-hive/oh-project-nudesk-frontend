@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Modal, ModalHead, ModalBody, ModalFoot } from "@/components/ui/modal";
@@ -8,7 +8,7 @@ import { useToast } from "@/components/ui/toast";
 import { BookOpen, Calendar, Clock, FileText, Users, Video } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { apiFetch, ApiError } from "@/lib/api";
-import type { PendingCourse, PendingStudyGuide, PendingLiveClass, PaginatedResponse } from "@/lib/types";
+import type { PendingCourse, PendingStudyGuide, PendingLiveClass, PaginatedResponse, CourseModule } from "@/lib/types";
 
 type Tab = "courses" | "guides" | "live";
 
@@ -39,6 +39,7 @@ export default function AdminContentPage() {
 
   // Preview modal
   const [previewCourse, setPreviewCourse] = useState<PendingCourse | null>(null);
+  const [previewModule, setPreviewModule] = useState<CourseModule | null>(null);
 
   // Reject modal
   const [rejectTarget, setRejectTarget] = useState<{ id: string; title: string; type: Tab } | null>(null);
@@ -298,6 +299,15 @@ export default function AdminContentPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex gap-1">
+                            {g.file && (
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => window.open(g.file, "_blank")}
+                              >
+                                Preview
+                              </Button>
+                            )}
                             <Button
                               variant="success-ghost"
                               size="sm"
@@ -439,38 +449,49 @@ export default function AdminContentPage() {
                   {[...previewCourse.modules]
                     .sort((a, b) => a.order - b.order)
                     .map((mod, i) => {
-                      const TypeIcon =
-                        mod.content_type === "video"
-                          ? Video
-                          : mod.content_type === "document"
-                          ? FileText
-                          : BookOpen;
-                      const hasContent = !!(mod.content_url || mod.file);
+                      const types = mod.content_type ? mod.content_type.split(",").filter(Boolean) : [];
+                      const typeIconMap: Record<string, React.ReactNode> = {
+                        video: <Video className="w-3 h-3" />,
+                        document: <FileText className="w-3 h-3" />,
+                        quiz: <BookOpen className="w-3 h-3" />,
+                        reading: <BookOpen className="w-3 h-3" />,
+                      };
+                      const hasVideo = types.includes("video");
+                      const hasDoc = types.includes("document");
+                      const hasQuiz = types.includes("quiz");
+                      const videoOk = hasVideo ? !!mod.content_url : true;
+                      const docOk = hasDoc ? !!mod.file : true;
+                      const quizOk = hasQuiz ? (mod.quiz_question_count != null && mod.quiz_question_count > 0) : true;
+                      const allOk = videoOk && docOk && quizOk;
                       return (
-                        <div
+                        <button
                           key={mod.id}
-                          className="flex items-start gap-3 bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-3"
+                          onClick={() => setPreviewModule(mod)}
+                          className="flex items-start gap-3 bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-3 w-full text-left hover:border-violet-300 hover:bg-violet-50/40 transition-colors group"
                         >
                           <span className="text-xs font-bold text-neutral-400 mt-0.5 w-5 shrink-0">{i + 1}.</span>
                           <div className="flex-1 min-w-0">
-                            <div className="text-sm font-semibold">{mod.title}</div>
-                            <div className="flex items-center gap-2 text-[.72rem] text-neutral-400 mt-0.5 flex-wrap">
-                              <TypeIcon className="w-3 h-3" />
-                              <span className="capitalize">{mod.content_type}</span>
+                            <div className="text-sm font-semibold group-hover:text-violet-700 transition-colors">{mod.title}</div>
+                            <div className="flex items-center gap-3 text-[.72rem] text-neutral-400 mt-0.5 flex-wrap">
+                              {types.map((t) => (
+                                <span key={t} className="flex items-center gap-1 capitalize">{typeIconMap[t]}{t}</span>
+                              ))}
                               {mod.duration_minutes != null && mod.duration_minutes > 0 && (
                                 <span>· {mod.duration_minutes} min</span>
                               )}
-                              {hasContent ? (
-                                <span className="text-green-600 font-semibold">Content attached</span>
-                              ) : (
-                                <span className="text-amber-500 font-semibold">No content yet</span>
+                              <span className={allOk ? "text-green-600 font-semibold" : "text-amber-500 font-semibold"}>
+                                {allOk ? "Content ready" : "Incomplete"}
+                              </span>
+                              {hasQuiz && mod.quiz_question_count != null && (
+                                <span className="text-neutral-500">{mod.quiz_question_count} question{mod.quiz_question_count !== 1 ? "s" : ""}</span>
                               )}
                             </div>
                             {mod.description && (
                               <p className="text-[.75rem] text-neutral-500 mt-1 line-clamp-2">{mod.description}</p>
                             )}
                           </div>
-                        </div>
+                          <span className="text-[.68rem] text-neutral-400 mt-1 group-hover:text-violet-500 shrink-0">View →</span>
+                        </button>
                       );
                     })}
                 </div>
@@ -507,8 +528,114 @@ export default function AdminContentPage() {
         )}
       </Modal>
 
-      {/* Reject Modal */}
-      <Modal open={!!rejectTarget} onClose={() => setRejectTarget(null)} size="sm">
+      {/* Module Detail Modal */}
+      <Modal open={!!previewModule} onClose={() => setPreviewModule(null)} size="md">
+        {previewModule && (() => {
+          const types = previewModule.content_type ? previewModule.content_type.split(",").filter(Boolean) : [];
+          const typeLabel = types.map((t) => t.charAt(0).toUpperCase() + t.slice(1)).join(" · ");
+          return (
+            <>
+              <ModalHead
+                title={previewModule.title}
+                subtitle={`${typeLabel}${previewModule.duration_minutes ? ` · ${previewModule.duration_minutes} min` : ""}`}
+                onClose={() => setPreviewModule(null)}
+              />
+              <ModalBody>
+                <div className="flex flex-col gap-6">
+                  {previewModule.description && (
+                    <p className="text-sm text-neutral-600 whitespace-pre-line">{previewModule.description}</p>
+                  )}
+
+                  {/* Video section */}
+                  {types.includes("video") && (
+                    <div>
+                      <h5 className="text-xs font-bold uppercase tracking-wider text-neutral-500 mb-2 flex items-center gap-1.5"><Video className="w-3.5 h-3.5" /> Video</h5>
+                      {previewModule.content_url ? (
+                        <div className="rounded-xl overflow-hidden border border-neutral-200 bg-black aspect-video">
+                          <iframe
+                            src={previewModule.content_url.replace("watch?v=", "embed/")}
+                            className="w-full h-full"
+                            allowFullScreen
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          />
+                        </div>
+                      ) : (
+                        <p className="text-sm text-amber-500">No video URL attached.</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Reading section */}
+                  {types.includes("reading") && (
+                    <div>
+                      <h5 className="text-xs font-bold uppercase tracking-wider text-neutral-500 mb-2 flex items-center gap-1.5"><BookOpen className="w-3.5 h-3.5" /> Reading</h5>
+                      {previewModule.content_url ? (
+                        <a href={previewModule.content_url} target="_blank" rel="noopener noreferrer" className="text-sm text-violet-600 underline underline-offset-2 break-all">{previewModule.content_url}</a>
+                      ) : (
+                        <p className="text-sm text-neutral-400">No external link.</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Document section */}
+                  {types.includes("document") && (
+                    <div>
+                      <h5 className="text-xs font-bold uppercase tracking-wider text-neutral-500 mb-2 flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> Document</h5>
+                      {previewModule.file ? (
+                        <a
+                          href={previewModule.file}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors"
+                        >
+                          <FileText className="w-4 h-4" />
+                          Open Document
+                        </a>
+                      ) : (
+                        <p className="text-sm text-amber-500">No document file attached.</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Quiz section */}
+                  {types.includes("quiz") && (
+                    <div>
+                      <h5 className="text-xs font-bold uppercase tracking-wider text-neutral-500 mb-2 flex items-center gap-1.5"><BookOpen className="w-3.5 h-3.5" /> Quiz</h5>
+                      {previewModule.questions && previewModule.questions.length > 0 ? (
+                        <div className="flex flex-col gap-4">
+                          {[...previewModule.questions].sort((a, b) => a.order - b.order).map((q, qi) => (
+                            <div key={q.id} className="bg-neutral-50 border border-neutral-200 rounded-xl p-4">
+                              <p className="text-sm font-semibold text-neutral-800 mb-2">{qi + 1}. {q.text}</p>
+                              <div className="flex flex-col gap-1.5">
+                                {[...q.answers].sort((a, b) => a.order - b.order).map((ans) => (
+                                  <div key={ans.id} className={`flex items-center gap-2 text-sm px-3 py-2 rounded-lg border ${ans.is_correct ? "bg-green-50 border-green-200 text-green-800 font-semibold" : "border-neutral-200 text-neutral-600"}`}>
+                                    <span className={`w-2 h-2 rounded-full shrink-0 ${ans.is_correct ? "bg-green-500" : "bg-neutral-300"}`} />
+                                    {ans.text}
+                                  </div>
+                                ))}
+                              </div>
+                              {q.explanation && (
+                                <p className="text-[.75rem] text-neutral-500 mt-2 italic">Explanation: {q.explanation}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-amber-500">No quiz questions added yet.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </ModalBody>
+              <ModalFoot>
+                <Button variant="secondary" size="sm" onClick={() => setPreviewModule(null)}>Back to Course</Button>
+              </ModalFoot>
+            </>
+          );
+        })()}
+      </Modal>
+
+      {/* Reject Modal */}      <Modal open={!!rejectTarget} onClose={() => setRejectTarget(null)} size="sm">
         {rejectTarget && (
           <>
             <ModalHead

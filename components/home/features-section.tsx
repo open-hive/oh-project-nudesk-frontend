@@ -1,52 +1,52 @@
 import {
-  PlaySquare,
-  Radio,
-  FileText,
-  ShieldCheck,
-  Star,
+  Repeat,
+  MapPin,
+  Wallet,
   BarChart3,
+  ShieldCheck,
+  Clock,
 } from "lucide-react";
 
 const features = [
   {
-    Icon: PlaySquare,
-    title: "On-Demand Courses",
-    desc: "Video-based courses structured into modules with quizzes, certificates, and lifetime access.",
+    Icon: Repeat,
+    title: "Create Once, Earn Forever",
+    desc: "Record a course once and watch students enrol month after month. Your content keeps earning while you sleep.",
     bg: "bg-primary-light",
     color: "text-primary",
   },
   {
-    Icon: Radio,
-    title: "Live Classes",
-    desc: "Join real-time sessions with expert tutors. Interactive Q&A, screen sharing, and live chat.",
+    Icon: MapPin,
+    title: "Reach Students Nationwide",
+    desc: "Based in Maun? Your students can be in Gaborone, Francistown, or Kasane. No classroom, no commute, no limits.",
     bg: "bg-accent-light",
     color: "text-accent",
   },
   {
-    Icon: FileText,
-    title: "Study Guides",
-    desc: "Expert-written reference materials, worked examples, and notes you can download forever.",
+    Icon: Wallet,
+    title: "Multiple Income Streams",
+    desc: "Earn from on-demand courses, live sessions, and downloadable study guides — all from one platform.",
     bg: "bg-success-light",
     color: "text-success",
   },
   {
     Icon: ShieldCheck,
-    title: "Vetted Experts Only",
-    desc: "Only 6% of applicants are approved. Every tutor is credential-verified and teaching-tested.",
+    title: "We Handle Payments",
+    desc: "NuDesk manages all billing, payment processing, and payouts. You focus on teaching — we handle the money.",
     bg: "bg-blue-50",
     color: "text-blue-600",
   },
   {
-    Icon: Star,
-    title: "Verified Certificates",
-    desc: "Earn shareable digital certificates on course completion. Add them to LinkedIn with one click.",
+    Icon: BarChart3,
+    title: "Real-Time Earnings Dashboard",
+    desc: "See exactly who enrolled, how much you've earned, and how students rate your content — updated live.",
     bg: "bg-amber-50",
     color: "text-amber-600",
   },
   {
-    Icon: BarChart3,
-    title: "Progress Tracking",
-    desc: "Visual dashboards showing your streaks, completion rates, scores, and feedback in one place.",
+    Icon: Clock,
+    title: "Teach on Your Schedule",
+    desc: "Upload content at your own pace. Host live sessions when it suits you. NuDesk flexes around your life, not the other way around.",
     bg: "bg-fuchsia-50",
     color: "text-purple-600",
   },
@@ -58,13 +58,14 @@ export function FeaturesSection() {
       <div className="max-w-[1200px] mx-auto px-6">
         <div className="text-center max-w-[520px] mx-auto mb-14">
           <div className="inline-flex items-center gap-1.5 bg-primary-light text-primary border-[1.5px] border-primary-muted text-[.72rem] font-bold px-3.5 py-1 rounded-full uppercase tracking-[0.07em] mb-3.5">
-            <Sparkle /> Platform
+            <Sparkle /> Why Tutors Choose Us
           </div>
           <h2 className="text-[2.6rem] font-extrabold text-neutral-900 leading-[1.2] tracking-[-0.03em]">
-            Why Students Love NuDesk
+            Built for Tutors Who Want More
           </h2>
           <p className="text-base text-neutral-500 mx-auto leading-[1.65] mt-3.5">
-            Everything you need to go from confused to confident.
+            Stop limiting yourself to one classroom. NuDesk turns your expertise into
+            a scalable income source that works around the clock.
           </p>
         </div>
 
@@ -104,3 +105,4 @@ function Sparkle() {
     </svg>
   );
 }
+
