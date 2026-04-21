@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
@@ -22,11 +22,21 @@ function getRedirectPath(user: {
 }
 
 export default function SignInPage() {
+  return (
+    <Suspense>
+      <SignInInner />
+    </Suspense>
+  );
+}
+
+function SignInInner() {
   const [showPw, setShowPw] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const sessionExpired = searchParams.get("session_expired") === "1";
   const toast = useToast();
   const { login } = useAuth();
 
@@ -65,13 +75,17 @@ export default function SignInPage() {
       </h1>
       <p className="text-sm text-neutral-500 mb-7">
         No account?{" "}
-        <Link
-          href="/auth/signup"
-          className="text-primary font-semibold hover:underline"
-        >
+        <Link href="/auth/signup" className="text-primary font-semibold hover:underline">
           Sign up free &rarr;
         </Link>
       </p>
+
+      {sessionExpired && (
+        <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-4 py-3 mb-5 text-sm">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-amber-500" />
+          <span>Your session expired. Please sign in again to continue.</span>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div>

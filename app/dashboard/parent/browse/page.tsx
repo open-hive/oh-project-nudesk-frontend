@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Image from "next/image";
 import {
   Loader2,
   Search,
@@ -129,12 +130,13 @@ export default function ParentBrowsePage() {
               className="bg-white border-[1.5px] border-neutral-200 rounded-[20px] overflow-hidden hover:border-orange-200 hover:shadow-xl hover:-translate-y-[4px] transition-all"
             >
               {/* Thumbnail */}
-              <div className="aspect-video overflow-hidden">
+              <div className="relative aspect-video overflow-hidden">
                 {course.cover_image ? (
-                  <img
+                  <Image
                     src={course.cover_image}
                     alt={course.title}
-                    className="w-full h-full object-cover"
+                    fill
+                    className="object-cover"
                   />
                 ) : (
                   <div

@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch, ApiError } from "./api";
+import { apiFetch, ApiError, registerAuthCallbacks } from "./api";
 import type { LoginUser, AuthTokens, Profile } from "./types";
 
 interface AuthContextValue {
@@ -79,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<LoginUser | null>(() => getStoredUser());
   const [tokens, setTokens] = useState<AuthTokens | null>(() => getStoredTokens());
   const [profile, setProfile] = useState<Profile | null>(() => getStoredProfile());
-  const [loading, setLoading] = useState(true);
+  const [loading] = useState(false);
   const router = useRouter();
 
   const fetchProfile = useCallback(async (): Promise<Profile | null> => {
@@ -99,8 +99,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Mark hydration complete after mount + fetch profile if logged in
   useEffect(() => {
-    setLoading(false);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (getStoredTokens()) fetchProfile();
+
+    // Register interceptor callbacks so api.ts can refresh & force-logout
+    registerAuthCallbacks({
+      getRefreshToken: () => localStorage.getItem("refresh_token"),
+      onTokenRefreshed: (newAccess) => {
+        localStorage.setItem("access_token", newAccess);
+        setTokens((prev) => prev ? { ...prev, access: newAccess } : { access: newAccess, refresh: localStorage.getItem("refresh_token") ?? "" });
+      },
+      onForceLogout: () => {
+        clearAuth();
+        setUser(null);
+        setTokens(null);
+        setProfile(null);
+        router.push("/auth/signin?session_expired=1");
+      },
+    });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setAuth = useCallback((user: LoginUser, tokens: AuthTokens) => {

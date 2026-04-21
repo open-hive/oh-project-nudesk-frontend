@@ -1,5 +1,44 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
+// ── Token refresh interceptor ──────────────────────────────────────────────────
+// The auth context registers these callbacks on mount so the API layer can
+// refresh tokens and force-logout without creating a circular import.
+
+let _getRefreshToken: (() => string | null) | null = null;
+let _onTokenRefreshed: ((newAccess: string) => void) | null = null;
+let _onForceLogout: (() => void) | null = null;
+
+export function registerAuthCallbacks(opts: {
+  getRefreshToken: () => string | null;
+  onTokenRefreshed: (newAccess: string) => void;
+  onForceLogout: () => void;
+}) {
+  _getRefreshToken = opts.getRefreshToken;
+  _onTokenRefreshed = opts.onTokenRefreshed;
+  _onForceLogout = opts.onForceLogout;
+}
+
+/** Try to refresh the access token. Returns new access token or null. */
+async function tryRefresh(): Promise<string | null> {
+  if (!_getRefreshToken) return null;
+  const refresh = _getRefreshToken();
+  if (!refresh) return null;
+  try {
+    const res = await fetch(`${API_URL}/users/token/refresh/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const newAccess: string = data.access;
+    if (_onTokenRefreshed) _onTokenRefreshed(newAccess);
+    return newAccess;
+  } catch {
+    return null;
+  }
+}
+
 type FetchOptions = RequestInit & {
   token?: string;
 };
@@ -19,10 +58,24 @@ export async function apiFetch<T>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_URL}${endpoint}`, {
-    ...rest,
-    headers,
-  });
+  const res = await fetch(`${API_URL}${endpoint}`, { ...rest, headers });
+
+  if (res.status === 401 && token) {
+    // Try refreshing once
+    const newAccess = await tryRefresh();
+    if (newAccess) {
+      const retryHeaders = { ...headers, Authorization: `Bearer ${newAccess}` };
+      const retry = await fetch(`${API_URL}${endpoint}`, { ...rest, headers: retryHeaders });
+      if (retry.ok) {
+        if (retry.status === 204) return undefined as T;
+        return retry.json();
+      }
+    }
+    // Refresh failed or retry still 401 — force logout
+    if (_onForceLogout) _onForceLogout();
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError(res.status, body);
+  }
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -55,15 +108,24 @@ export async function apiUpload<T>(
 ): Promise<T> {
   const { token, method = "POST" } = options;
   const headers: Record<string, string> = {};
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
+  if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(`${API_URL}${endpoint}`, {
-    method,
-    headers,
-    body: formData,
-  });
+  const res = await fetch(`${API_URL}${endpoint}`, { method, headers, body: formData });
+
+  if (res.status === 401 && token) {
+    const newAccess = await tryRefresh();
+    if (newAccess) {
+      const retryHeaders = { Authorization: `Bearer ${newAccess}` };
+      const retry = await fetch(`${API_URL}${endpoint}`, { method, headers: retryHeaders, body: formData });
+      if (retry.ok) {
+        if (retry.status === 204) return undefined as T;
+        return retry.json();
+      }
+    }
+    if (_onForceLogout) _onForceLogout();
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError(res.status, body);
+  }
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));

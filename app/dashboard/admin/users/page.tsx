@@ -97,7 +97,7 @@ export default function AdminUsersPage() {
       .then((data) => {
         setParentChildren(data.stats?.children ?? []);
         // Update edit form with full profile data
-        const profile = data.profile || {};
+        const profile = data.profile || ({} as { first_name?: string; last_name?: string; phone?: string; bio?: string });
         setEditForm({
           email: selected.email,
           username: selected.username,

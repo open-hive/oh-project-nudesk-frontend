@@ -45,7 +45,7 @@ export default function AdminSettingsPage() {
       })
       .catch(() => toast.error("Failed to load settings."))
       .finally(() => setLoading(false));
-  }, [tokens]);
+  }, [tokens, toast]);
 
   const saveGeneral = useCallback(async () => {
     if (!tokens) return;

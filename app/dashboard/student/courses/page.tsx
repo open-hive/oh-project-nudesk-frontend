@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Plus, Play, Award, ShoppingCart, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -170,7 +171,7 @@ export default function StudentCoursesPage() {
                 >
                   <div className="relative aspect-video overflow-hidden">
                     {e.cover_image ? (
-                      <img src={e.cover_image} alt={e.course_title} className="w-full h-full object-cover" />
+                      <Image src={e.cover_image} alt={e.course_title} fill className="object-cover" />
                     ) : (
                       <div className={`w-full h-full bg-gradient-to-br ${gradient(i)} flex items-center justify-center text-[3rem]`}>
                         {emoji(i)}
@@ -257,7 +258,7 @@ export default function StudentCoursesPage() {
                   >
                     <div className="relative aspect-video overflow-hidden">
                       {c.cover_image ? (
-                        <img src={c.cover_image} alt={c.title} className="w-full h-full object-cover" />
+                        <Image src={c.cover_image} alt={c.title} fill className="object-cover" />
                       ) : (
                         <div className={`w-full h-full bg-gradient-to-br ${gradient(i)} flex items-center justify-center text-[3rem]`}>
                           {emoji(i)}

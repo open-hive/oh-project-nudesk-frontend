@@ -35,7 +35,7 @@ export default function AdminRevenuePage() {
       })
       .catch(() => toast.error("Failed to load revenue data."))
       .finally(() => setLoading(false));
-  }, [tokens]);
+  }, [tokens, toast]);
 
   const handleExport = useCallback(async () => {
     if (!tokens) return;

@@ -4,7 +4,6 @@ import {
   useState,
   useEffect,
   useRef,
-  useCallback,
 } from "react";
 import {
   Mic,
@@ -39,7 +38,6 @@ interface LiveClassroomProps {
 export function LiveClassroom({
   credentials,
   userName,
-  userId,
   isTutor,
   initialAudio,
   initialVideo,
@@ -53,7 +51,8 @@ export function LiveClassroom({
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
+  const remoteStreamsRef = useRef<Map<string, MediaStream>>(new Map());
+  const remoteStreams = remoteStreamsRef.current;
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const mainVideoRef = useRef<HTMLVideoElement>(null);
@@ -114,9 +113,10 @@ export function LiveClassroom({
 
   // Cleanup on unmount
   useEffect(() => {
+    const pcs = peerConnections.current;
     return () => {
       localStream?.getTracks().forEach((t) => t.stop());
-      peerConnections.current.forEach((pc) => pc.close());
+      pcs.forEach((pc) => pc.close());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
