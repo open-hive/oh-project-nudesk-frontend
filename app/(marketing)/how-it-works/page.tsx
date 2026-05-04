@@ -2,7 +2,7 @@ import { FaqItem } from "@/components/faq-item";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "How It Works - NuDesk",
+  title: "How It Works",
   description: "Designed for serious learning. From application to certification.",
 };
 
@@ -71,7 +71,7 @@ export default function HowItWorksPage() {
               Designed for Serious Learning
             </h1>
             <p className="text-base text-neutral-500 max-w-[520px] leading-relaxed mt-3.5">
-              From application to certification &mdash; how NuDesk ensures
+              From application to certification, how NuDesk ensures
               quality at every step.
             </p>
           </div>

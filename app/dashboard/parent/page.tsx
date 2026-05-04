@@ -95,7 +95,7 @@ export default function ParentOverviewPage() {
       {/* Welcome */}
       <div>
         <h2 className="text-2xl font-bold text-neutral-900">
-          Welcome back, {firstName} 👋
+          Welcome back, {firstName}
         </h2>
         <p className="text-sm text-neutral-500 mt-1">
           Here&apos;s a snapshot of your children&apos;s learning progress.

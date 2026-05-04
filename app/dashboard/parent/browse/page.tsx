@@ -25,7 +25,7 @@ const GRADIENTS = [
   "from-green-50 to-emerald-100",
   "from-amber-50 to-amber-100",
 ];
-const EMOJIS = ["📐", "⚛️", "🧪", "💻"];
+const EMOJIS = ["M", "P", "S", "T"];
 
 export default function ParentBrowsePage() {
   const { tokens } = useAuth();

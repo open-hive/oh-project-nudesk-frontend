@@ -15,7 +15,7 @@ const steps = [
     number: "02",
     Icon: UploadCloud,
     title: "Create Your Content",
-    desc: "Upload video modules, host live sessions, or sell study guides. Our tools make it simple — no technical skills required.",
+    desc: "Upload video modules, host live sessions, or sell study guides. Our tools make it simple no technical skills required.",
     color: "bg-orange-500",
     light: "bg-accent-light",
     text: "text-accent",
@@ -24,7 +24,7 @@ const steps = [
     number: "03",
     Icon: Banknote,
     title: "Get Paid Every Month",
-    desc: "Students enrol, you earn. Track your income in real time and receive monthly payouts directly to your account — no chasing anyone.",
+    desc: "Students enrol, you earn. Track your income in real time and receive monthly payouts directly to your account no chasing anyone.",
     color: "bg-green-600",
     light: "bg-success-light",
     text: "text-success",
@@ -43,7 +43,7 @@ export function HowItWorksSection() {
             Three Steps to Start Earning
           </h2>
           <p className="text-base text-neutral-500 mx-auto leading-[1.65] mt-3.5">
-            From application to first payout — the whole process is straightforward
+            From application to first payout the whole process is straightforward
             and built to get you earning fast.
           </p>
         </div>
@@ -73,7 +73,7 @@ export function HowItWorksSection() {
         <p className="text-center text-sm text-neutral-400 mt-8">
           Ready to start?{" "}
           <Link href="/auth/signup?role=tutor" className="text-violet-600 font-semibold hover:underline">
-            Apply as a tutor — it&apos;s free
+            Apply as a tutor it&apos;s free
           </Link>
         </p>
       </div>

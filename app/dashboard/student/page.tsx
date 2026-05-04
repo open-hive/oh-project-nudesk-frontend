@@ -98,7 +98,7 @@ export default function StudentOverviewPage() {
     {
       icon: Flame,
       iconBg: "bg-orange-50 text-accent",
-      value: `${dash.learning_streak_days} 🔥`,
+      value: String(dash.learning_streak_days),
       label: "Day Streak",
     },
     {
@@ -120,7 +120,7 @@ export default function StudentOverviewPage() {
       {/* Greeting */}
       <div className="mb-6">
         <h2 className="text-[1.3rem] font-extrabold tracking-[-0.02em]">
-          Welcome back, {firstName} 👋
+          Welcome back, {firstName}
         </h2>
         {dash.learning_streak_days > 0 && (
           <p className="text-sm text-neutral-500 mt-1">
@@ -178,7 +178,7 @@ export default function StudentOverviewPage() {
                 <div
                   className={`w-12 h-12 rounded-[10px] bg-gradient-to-br ${GRADIENTS[i % GRADIENTS.length]} flex items-center justify-center text-[1.4rem] shrink-0`}
                 >
-                  📚
+                  
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold mb-1.5 truncate">

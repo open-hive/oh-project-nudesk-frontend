@@ -1,66 +1,161 @@
-import { Avatar } from "@/components/ui/avatar";
-import { StarRating } from "@/components/ui/star-rating";
+import { CheckCircle, Heart } from "lucide-react";
+import { WaveDecoration } from "@/components/home/wave-decoration";
 import { Button } from "@/components/ui/button";
-import { TrendingUp } from "lucide-react";
 
 const tutors = [
-  { initials: "SO", name: "Dr. Sarah Osei", field: "Mathematics", students: 148, courses: 18, rating: 5, color: "violet" as const, monthly: "P 3,200" },
-  { initials: "KA", name: "Prof. Kwame Asante", field: "Physics", students: 210, courses: 12, rating: 5, color: "orange" as const, monthly: "P 4,850" },
-  { initials: "AM", name: "Dr. Ama Mensah", field: "Chemistry", students: 96, courses: 8, rating: 5, color: "green" as const, monthly: "P 1,960" },
-  { initials: "AW", name: "Prof. Abena Wiredu", field: "Economics", students: 180, courses: 14, rating: 5, color: "yellow" as const, monthly: "P 3,740" },
-  { initials: "NO", name: "Nadia Osei-Bonsu", field: "Computer Science", students: 320, courses: 6, rating: 4, color: "violet" as const, monthly: "P 6,100" },
+  {
+    initials: "TM",
+    name: "Thabo Serame",
+    location: "Gaborone, BW",
+    rate: "P150/hr",
+    whatsapp: "+267 7X XXX",
+    qual: "B.Ed Maths",
+    rating: "5.0",
+    reviews: 12,
+    bg: "bg-violet-100",
+    color: "text-violet-700",
+  },
+  {
+    initials: "KN",
+    name: "Kefilwe Ndlovu",
+    location: "Francistown, BW",
+    rate: "P120/hr",
+    whatsapp: "+267 7X XXX",
+    qual: "BSc Physics",
+    rating: "5.0",
+    reviews: 9,
+    bg: "bg-orange-100",
+    color: "text-orange-700",
+  },
+  {
+    initials: "OD",
+    name: "Onkabetse D.",
+    location: "Gaborone, BW",
+    rate: "P180/hr",
+    whatsapp: "+267 7X XXX",
+    qual: "M.Sc Chemistry",
+    rating: "5.0",
+    reviews: 15,
+    bg: "bg-green-100",
+    color: "text-green-700",
+  },
+  {
+    initials: "MS",
+    name: "Mpho Sithole",
+    location: "Maun, BW",
+    rate: "P100/hr",
+    whatsapp: "+267 7X XXX",
+    qual: "PGCE English",
+    rating: "4.8",
+    reviews: 7,
+    bg: "bg-amber-100",
+    color: "text-amber-700",
+  },
 ];
 
 export function InstructorsSection() {
   return (
-    <section className="py-20 bg-neutral-50">
+    <section className="py-20 bg-white">
       <div className="max-w-[1200px] mx-auto px-6">
-        <div className="text-center max-w-[540px] mx-auto mb-12">
-          <div className="inline-flex items-center gap-1.5 bg-primary-light text-primary border-[1.5px] border-primary-muted text-[.72rem] font-bold px-3.5 py-1 rounded-full uppercase tracking-[0.07em] mb-3.5">
-            Tutors Already Earning
-          </div>
-          <h2 className="text-[2.1rem] font-extrabold text-neutral-900 leading-[1.2] tracking-[-0.03em]">
-            Real Tutors, Real Income
+        {/* Header */}
+        <div className="text-center max-w-[600px] mx-auto mb-12">
+          <WaveDecoration />
+          <p className="text-[13px] text-neutral-500 mb-2">
+            Our featured tutors
+          </p>
+          <h2 className="text-[2rem] font-bold text-neutral-900 leading-[1.2] tracking-[-0.02em] mb-3">
+            Highly qualified professionals
           </h2>
-          <p className="text-base text-neutral-500 mx-auto leading-[1.65] mt-3.5">
-            These tutors joined NuDesk and turned their subject expertise into
-            a consistent monthly income — without leaving their day jobs.
+          <p className="text-[15px] text-neutral-500 leading-[1.6]">
+            Every tutor on NuDesk is vetted for subject expertise and teaching ability. Connect with the best educators in Botswana.
           </p>
         </div>
 
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
-          {tutors.map((inst) => (
+        {/* 4-Column Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {tutors.map((tutor) => (
             <div
-              key={inst.name}
-              className="bg-white border-[1.5px] border-neutral-200 rounded-[20px] p-5 text-center cursor-pointer transition-all duration-200 hover:shadow-xl hover:-translate-y-[3px]"
+              key={tutor.name}
+              className="bg-white rounded-[12px] border border-neutral-200 overflow-hidden hover:-translate-y-1 hover:shadow-xl transition-all duration-200 group"
             >
-              <Avatar
-                initials={inst.initials}
-                size="xl"
-                color={inst.color}
-                className="mx-auto mb-3"
-              />
-              <div className="text-[.9rem] font-bold mb-0.5">{inst.name}</div>
-              <div className="text-[.78rem] text-neutral-500 mb-2">
-                {inst.field}
+              {/* Image / Cover area */}
+              <div className="h-[140px] bg-neutral-100 relative">
+                {/* Fallback pattern for cover */}
+                <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-neutral-400 to-transparent" />
+                <div className="absolute top-2 left-2 bg-error text-white text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">
+                  Featured
+                </div>
               </div>
-              <div className="flex justify-center mb-2">
-                <StarRating rating={inst.rating} />
-              </div>
-              <div className="text-xs text-neutral-500 mb-2.5">
-                {inst.students} students &middot; {inst.courses} courses
-              </div>
-              <div className="bg-green-50 border border-green-100 rounded-xl py-1.5 px-2 flex items-center justify-center gap-1">
-                <TrendingUp className="w-3 h-3 text-green-600" />
-                <span className="text-[.72rem] font-bold text-green-700">{inst.monthly}/mo</span>
+
+              {/* Info Body */}
+              <div className="p-4 pt-0 relative">
+                {/* Avatar */}
+                <div
+                  className={`w-[48px] h-[48px] rounded-full border-2 border-white absolute -top-[24px] left-4 flex items-center justify-center font-bold text-[14px] ${tutor.bg} ${tutor.color}`}
+                >
+                  {tutor.initials}
+                </div>
+
+                <div className="pt-8 mb-4">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <h3 className="text-[14px] font-bold text-neutral-900 truncate">
+                      {tutor.name}
+                    </h3>
+                    <CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" />
+                  </div>
+                  <p className="text-[12px] text-neutral-500 truncate">
+                    {tutor.location}
+                  </p>
+                </div>
+
+                {/* Details Table */}
+                <div className="flex flex-col gap-1.5 mb-4">
+                  <div className="flex justify-between items-center text-[12px]">
+                    <span className="text-neutral-500">Starting from:</span>
+                    <span className="font-medium text-neutral-900">{tutor.rate}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[12px]">
+                    <span className="text-neutral-500">WhatsApp:</span>
+                    <span className="font-medium text-neutral-900">{tutor.whatsapp}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[12px]">
+                    <span className="text-neutral-500">Qual:</span>
+                    <span className="font-medium text-neutral-900">{tutor.qual}</span>
+                  </div>
+                </div>
+
+                {/* Bottom Row */}
+                <div className="pt-3 border-t border-neutral-200 flex justify-between items-center">
+                  <div className="flex items-center gap-1">
+                    <span className="text-amber-400 text-[11px] tracking-widest">
+                      Rating
+                    </span>
+                    <span className="text-[11px] font-bold text-neutral-900 ml-1">
+                      {tutor.rating}
+                    </span>
+                    <span className="text-[11px] text-neutral-500">
+                      ({tutor.reviews})
+                    </span>
+                  </div>
+                  <button className="text-neutral-400 hover:text-red-500 transition-colors">
+                    <Heart className="w-[14px] h-[14px]" />
+                  </button>
+                </div>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="text-center mt-8">
-          <Button variant="outline-v" size="lg" href="/auth/signup?role=tutor">
-            Join These Tutors
+        {/* Dots */}
+        <div className="flex gap-1.5 justify-center mt-6">
+          <div className="w-4 h-1 rounded-full bg-primary" />
+          <div className="w-4 h-1 rounded-full bg-neutral-300" />
+        </div>
+
+        {/* CTA */}
+        <div className="text-center mt-6">
+          <Button variant="primary" size="lg" href="/courses" className="rounded-xl">
+            Explore all tutors →
           </Button>
         </div>
       </div>

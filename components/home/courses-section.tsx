@@ -15,7 +15,7 @@ const gradients = [
   "from-green-50 to-green-100",
   "from-blue-50 to-blue-100",
 ];
-const emojis = ["📚", "🧠", "🔬", "💡"];
+const emojis = ["C", "K", "S", "I"];
 
 export function CoursesSection() {
   const [courses, setCourses] = useState<Course[]>([]);

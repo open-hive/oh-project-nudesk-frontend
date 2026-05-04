@@ -1,52 +1,54 @@
 import {
-  Repeat,
-  MapPin,
-  Wallet,
-  BarChart3,
+  BookOpen,
+  Video,
+  PiggyBank,
+  Award,
+  Users,
   ShieldCheck,
-  Clock,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { WaveDecoration } from "@/components/home/wave-decoration";
 
-const features = [
+const valueProps = [
   {
-    Icon: Repeat,
-    title: "Create Once, Earn Forever",
-    desc: "Record a course once and watch students enrol month after month. Your content keeps earning while you sleep.",
-    bg: "bg-primary-light",
-    color: "text-primary",
+    Icon: BookOpen,
+    title: "Teach any subject",
+    desc: "Create courses for any level, from PSLE to university and professional skills.",
+    bg: "bg-violet-100",
+    color: "text-violet-600",
   },
   {
-    Icon: MapPin,
-    title: "Reach Students Nationwide",
-    desc: "Based in Maun? Your students can be in Gaborone, Francistown, or Kasane. No classroom, no commute, no limits.",
-    bg: "bg-accent-light",
-    color: "text-accent",
+    Icon: Video,
+    title: "Offer flexible sessions",
+    desc: "Run video or in-person sessions on your schedule, from anywhere.",
+    bg: "bg-orange-50",
+    color: "text-orange-500",
   },
   {
-    Icon: Wallet,
-    title: "Multiple Income Streams",
-    desc: "Earn from on-demand courses, live sessions, and downloadable study guides — all from one platform.",
-    bg: "bg-success-light",
-    color: "text-success",
+    Icon: PiggyBank,
+    title: "Earn from your expertise",
+    desc: "Set your price, sell courses, and track earnings in one dashboard.",
+    bg: "bg-green-50",
+    color: "text-green-600",
   },
   {
-    Icon: ShieldCheck,
-    title: "We Handle Payments",
-    desc: "NuDesk manages all billing, payment processing, and payouts. You focus on teaching — we handle the money.",
+    Icon: Award,
+    title: "Build your reputation",
+    desc: "Grow your profile with verified reviews and consistent learner results.",
     bg: "bg-blue-50",
     color: "text-blue-600",
   },
   {
-    Icon: BarChart3,
-    title: "Real-Time Earnings Dashboard",
-    desc: "See exactly who enrolled, how much you've earned, and how students rate your content — updated live.",
+    Icon: Users,
+    title: "Reach more learners",
+    desc: "Get discovered by students nationwide without chasing payments.",
     bg: "bg-amber-50",
     color: "text-amber-600",
   },
   {
-    Icon: Clock,
-    title: "Teach on Your Schedule",
-    desc: "Upload content at your own pace. Host live sessions when it suits you. NuDesk flexes around your life, not the other way around.",
+    Icon: ShieldCheck,
+    title: "Verified tutor profiles",
+    desc: "Showcase your credentials with a trusted, verified profile on NuDesk.",
     bg: "bg-fuchsia-50",
     color: "text-purple-600",
   },
@@ -56,53 +58,49 @@ export function FeaturesSection() {
   return (
     <section className="py-20">
       <div className="max-w-[1200px] mx-auto px-6">
-        <div className="text-center max-w-[520px] mx-auto mb-14">
-          <div className="inline-flex items-center gap-1.5 bg-primary-light text-primary border-[1.5px] border-primary-muted text-[.72rem] font-bold px-3.5 py-1 rounded-full uppercase tracking-[0.07em] mb-3.5">
-            <Sparkle /> Why Tutors Choose Us
-          </div>
-          <h2 className="text-[2.6rem] font-extrabold text-neutral-900 leading-[1.2] tracking-[-0.03em]">
-            Built for Tutors Who Want More
+        {/* Centered heading block */}
+        <div className="text-center max-w-[600px] mx-auto mb-14">
+          <WaveDecoration />
+          <p className="text-[13px] text-neutral-500 mb-2">
+            Teach smarter. Earn more.
+          </p>
+          <h2 className="text-[2rem] font-bold text-neutral-900 leading-[1.2] tracking-[-0.02em] mb-3">
+            The platform built for tutors
           </h2>
-          <p className="text-base text-neutral-500 mx-auto leading-[1.65] mt-3.5">
-            Stop limiting yourself to one classroom. NuDesk turns your expertise into
-            a scalable income source that works around the clock.
+          <p className="text-[15px] text-neutral-500 leading-[1.6]">
+            Create content, host sessions, and earn from your knowledge on NuDesk.
           </p>
         </div>
 
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-5">
-          {features.map((f) => (
+        {/* 3×2 horizontal card grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {valueProps.map((f) => (
             <div
               key={f.title}
-              className="bg-white border-[1.5px] border-neutral-200 rounded-2xl p-5 cursor-pointer transition-all duration-200 hover:border-violet-200 hover:shadow-xl hover:-translate-y-[3px]"
+              className="bg-white border border-[#EBEBEB] rounded-xl p-6 flex items-start gap-4 cursor-pointer transition-all duration-200 hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)]"
             >
               <div
-                className={`w-[52px] h-[52px] rounded-2xl flex items-center justify-center mb-4 ${f.bg}`}
+                className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${f.bg}`}
               >
                 <f.Icon className={`w-6 h-6 ${f.color}`} />
               </div>
-              <div className="text-[.975rem] font-bold mb-2">{f.title}</div>
-              <div className="text-sm text-neutral-500 leading-[1.6]">
-                {f.desc}
+              <div>
+                <div className="text-[15px] font-bold text-neutral-900 mb-1">{f.title}</div>
+                <div className="text-[13px] text-neutral-500 leading-[1.5] line-clamp-2">
+                  {f.desc}
+                </div>
               </div>
             </div>
           ))}
+        </div>
+
+        {/* CTA */}
+        <div className="text-center mt-10">
+          <Button variant="primary" size="lg" href="/auth/signup" className="rounded-xl">
+            Apply as a Tutor
+          </Button>
         </div>
       </div>
     </section>
   );
 }
-
-function Sparkle() {
-  return (
-    <svg
-      className="w-3 h-3"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-    >
-      <path d="M12 3v18M3 12h18M5.636 5.636l12.728 12.728M18.364 5.636L5.636 18.364" />
-    </svg>
-  );
-}
-

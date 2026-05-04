@@ -78,10 +78,10 @@ export default function AdminRevenuePage() {
   }
 
   const stats = [
-    { icon: "💰", label: "GMV This Month", value: fmt(Number(overview.gmv_monthly)), sub: `YTD: ${fmt(Number(overview.gmv_ytd))}`, color: "bg-violet-50" },
-    { icon: "💸", label: "Platform Commission", value: fmt(Number(overview.commission_monthly)), sub: `YTD: ${fmt(Number(overview.commission_ytd))}`, color: "bg-orange-50" },
-    { icon: "📈", label: "YTD GMV", value: fmt(Number(overview.gmv_ytd)), sub: `${overview.total_transactions.toLocaleString()} transactions`, color: "bg-green-50" },
-    { icon: "👤", label: "Avg Revenue / User", value: overview.avg_revenue_per_user ? `P${Number(overview.avg_revenue_per_user).toFixed(2)}` : "—", sub: `+${overview.new_students_monthly} students this month`, color: "bg-amber-50" },
+    { icon: "$", label: "GMV This Month", value: fmt(Number(overview.gmv_monthly)), sub: `YTD: ${fmt(Number(overview.gmv_ytd))}`, color: "bg-violet-50" },
+    { icon: "C", label: "Platform Commission", value: fmt(Number(overview.commission_monthly)), sub: `YTD: ${fmt(Number(overview.commission_ytd))}`, color: "bg-orange-50" },
+    { icon: "G", label: "YTD GMV", value: fmt(Number(overview.gmv_ytd)), sub: `${overview.total_transactions.toLocaleString()} transactions`, color: "bg-green-50" },
+    { icon: "U", label: "Avg Revenue / User", value: overview.avg_revenue_per_user ? `P${Number(overview.avg_revenue_per_user).toFixed(2)}` : "—", sub: `+${overview.new_students_monthly} students this month`, color: "bg-amber-50" },
   ];
 
   return (

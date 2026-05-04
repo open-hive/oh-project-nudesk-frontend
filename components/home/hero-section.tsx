@@ -1,196 +1,217 @@
 "use client";
 
-import { ArrowRight, TrendingUp, Users, BookOpen, MapPin } from "lucide-react";
-import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { apiFetch } from "@/lib/api";
-import type { Course, Category, PaginatedResponse } from "@/lib/types";
+import { Search, ChevronDown, CheckCircle } from "lucide-react";
+import { useState } from "react";
 
-function TutorEarningsCard() {
+const verifiedTutors = [
+  { initials: "TS", name: "Thabo Serame", location: "Gaborone" },
+  { initials: "KN", name: "Kefilwe Ndlovu", location: "Francistown" },
+  { initials: "MD", name: "Mpho Dithebe", location: "Lobatse" },
+  { initials: "LO", name: "Lorato Oagile", location: "Maun" },
+  { initials: "BM", name: "Boitumelo Masire", location: "Serowe" },
+];
+
+const popularSearches = ["Mathematics", "Sciences", "Languages"];
+
+function DecorativeDots() {
   return (
-    <div className="relative flex justify-center items-center">
-      <div className="bg-gradient-to-br from-violet-600 to-violet-800 rounded-3xl shadow-2xl w-full max-w-[420px] aspect-[1/1.05] p-5 flex flex-col gap-3">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-violet-300 text-[.7rem] font-semibold uppercase tracking-wider">Your Dashboard</p>
-            <p className="text-white font-bold text-sm mt-0.5">Dr. Kefilwe Sithole</p>
-          </div>
-          <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-sm">KS</div>
-        </div>
-
-        {/* Earnings highlight */}
-        <div className="bg-white/10 backdrop-blur rounded-2xl p-4">
-          <p className="text-violet-300 text-[.7rem] font-semibold mb-1">THIS MONTH&apos;S EARNINGS</p>
-          <p className="text-white text-3xl font-extrabold tracking-tight">P 4,820</p>
-          <div className="flex items-center gap-1 mt-1">
-            <TrendingUp className="w-3.5 h-3.5 text-green-400" />
-            <span className="text-green-400 text-[.72rem] font-semibold">+34% from last month</span>
-          </div>
-        </div>
-
-        {/* Stats row */}
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            { label: "Students", value: "312" },
-            { label: "Courses", value: "4" },
-            { label: "Rating", value: "4.9★" },
-          ].map((s) => (
-            <div key={s.label} className="bg-white/10 rounded-xl p-2.5 text-center">
-              <p className="text-white font-extrabold text-base leading-none">{s.value}</p>
-              <p className="text-violet-300 text-[.65rem] mt-0.5">{s.label}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Recent activity */}
-        <div className="bg-white/10 rounded-2xl p-3 flex-1">
-          <p className="text-violet-300 text-[.68rem] font-semibold mb-2 uppercase tracking-wider">Recent Enrollments</p>
-          <div className="flex flex-col gap-1.5">
-            {[
-              { name: "Thabo M.", location: "Gaborone", time: "2m ago" },
-              { name: "Lorato K.", location: "Maun", time: "18m ago" },
-              { name: "Neo D.", location: "Francistown", time: "1h ago" },
-            ].map((s) => (
-              <div key={s.name} className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-5 h-5 rounded-full bg-violet-400/40 flex items-center justify-center text-white text-[.6rem] font-bold">{s.name[0]}</div>
-                  <span className="text-white text-[.72rem] font-medium">{s.name}</span>
-                  <span className="text-violet-300 text-[.65rem]">· {s.location}</span>
-                </div>
-                <span className="text-violet-400 text-[.62rem]">{s.time}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Floating badges */}
-      <div className="absolute bottom-[6%] left-[-8%] bg-white border-[1.5px] border-neutral-200 rounded-2xl px-4 py-3 shadow-xl flex items-center gap-2.5 animate-float">
-        <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center">
-          <TrendingUp className="w-4 h-4 text-green-600" />
-        </div>
-        <div>
-          <div className="text-[.78rem] font-bold text-neutral-900">Payout Sent</div>
-          <div className="text-[.7rem] text-neutral-500">P 1,240 · this week</div>
-        </div>
-      </div>
-
-      <div className="absolute top-[8%] right-[-6%] bg-white border-[1.5px] border-neutral-200 rounded-2xl px-4 py-3 shadow-xl flex items-center gap-2.5 animate-float-delay">
-        <div className="w-9 h-9 rounded-full bg-violet-100 flex items-center justify-center">
-          <MapPin className="w-4 h-4 text-violet-600" />
-        </div>
-        <div>
-          <div className="text-[.78rem] font-bold text-neutral-900">Students in 8 towns</div>
-          <div className="text-[.7rem] text-neutral-500">No classroom needed</div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export function HeroSection() {
-  return (
-    <section className="pt-[70px] bg-[linear-gradient(155deg,var(--color-violet-50)_0%,#fff_55%)] min-h-[88vh] flex items-center overflow-hidden relative">
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_50%_60%_at_80%_10%,rgba(124,58,237,.07),transparent)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_40%_40%_at_5%_85%,rgba(249,115,22,.05),transparent)]" />
-      </div>
-      <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-white to-transparent pointer-events-none" />
-
-      <div className="max-w-[1200px] mx-auto px-6 w-full relative z-[1]">
-        <div className="grid grid-cols-2 gap-14 items-center py-16 pb-20">
-          <div>
-            <div className="inline-flex items-center gap-2 mb-[22px] bg-green-50 border-[1.5px] border-green-200 rounded-full py-[5px] px-4 pl-1.5 text-[.78rem] font-semibold text-green-700">
-              <span className="bg-green-600 text-white text-[.68rem] font-bold px-2.5 py-0.5 rounded-full">
-                TUTORS
-              </span>
-              Turn your knowledge into steady income
-            </div>
-
-            <h1 className="text-[clamp(2.2rem,3.8vw,3.5rem)] font-extrabold text-neutral-900 leading-[1.12] tracking-[-0.035em] mb-[18px]">
-              Teach From Anywhere.
-              <br />
-              Earn <span className="text-primary">Every Month.</span>
-            </h1>
-
-            <p className="text-base text-neutral-500 leading-[1.7] mb-7 max-w-[460px]">
-              Create a course once and earn from it for years. Whether you&apos;re in Maun
-              and your students are in Gaborone &mdash; NuDesk connects you with learners
-              across Botswana and beyond.
-            </p>
-
-            <div className="flex items-center gap-3 mb-6 flex-wrap">
-              <Button size="lg" href="/auth/signup?role=tutor">
-                Start Teaching <ArrowRight className="w-4 h-4 ml-1" />
-              </Button>
-              <Button variant="secondary" size="lg" href="/courses">
-                Browse Courses
-              </Button>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[.78rem] text-neutral-500">
-              {[
-                { icon: <Users className="w-3.5 h-3.5 text-violet-500" />, text: "No minimum student count to earn" },
-                { icon: <BookOpen className="w-3.5 h-3.5 text-violet-500" />, text: "Create once, earn indefinitely" },
-                { icon: <MapPin className="w-3.5 h-3.5 text-violet-500" />, text: "Reach students nationwide" },
-              ].map((item, i) => (
-                <div key={i} className="flex items-center gap-1.5">
-                  {item.icon}
-                  <span>{item.text}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <TutorEarningsCard />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-export function StatsBar() {
-  const [courseCount, setCourseCount] = useState(0);
-  const [categoryCount, setCategoryCount] = useState(0);
-
-  useEffect(() => {
-    apiFetch<PaginatedResponse<Course>>("/courses/")
-      .then((d) => setCourseCount(d.count))
-      .catch(() => {});
-    apiFetch<PaginatedResponse<Category>>("/courses/categories/")
-      .then((d) => setCategoryCount(d.count))
-      .catch(() => {});
-  }, []);
-
-  const stats = [
-    { value: "840+", label: "Active Tutors" },
-    { value: "12K+", label: "Students Reached" },
-    { value: courseCount > 0 ? `${courseCount.toLocaleString()}+` : "—", label: "Courses Published" },
-    { value: categoryCount > 0 ? `${categoryCount}+` : "—", label: "Subjects Covered" },
-    { value: "P4.2M+", label: "Paid Out to Tutors" },
-  ];
-
-  return (
-    <div className="border-t-[1.5px] border-neutral-200 bg-white">
-      <div className="max-w-[1200px] mx-auto flex items-stretch">
-        {stats.map((s, i) => (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      <div className="absolute top-[18%] left-[6%] w-[12px] h-[12px] rounded-full bg-blue-400/40" />
+      <div className="absolute top-[48%] left-[2%] w-[8px] h-[8px] rounded-full bg-blue-400/30" />
+      <div className="absolute top-[10%] left-[40%] w-[8px] h-[8px] rounded-full bg-neutral-500/40" />
+      <div className="absolute top-[6%] left-[58%] w-[6px] h-[6px] rounded-full bg-neutral-500/30" />
+      <div className="absolute bottom-[32%] left-[10%] w-[6px] h-[6px] rounded-full bg-purple-400/30" />
+      <div className="absolute bottom-0 left-0 flex items-end gap-[3px] px-5 pb-0 opacity-25">
+        {[38, 52, 62, 48, 68, 44, 58, 36, 50, 42].map((h, i) => (
           <div
-            key={s.label}
-            className={`flex-1 py-6 px-5 text-center ${
-              i < stats.length - 1 ? "border-r-[1.5px] border-neutral-200" : ""
-            }`}
-          >
-            <div className="text-[1.85rem] font-extrabold text-neutral-900 tracking-[-0.03em] leading-none">
-              {s.value}
-            </div>
-            <div className="text-[.78rem] text-neutral-500 mt-1 font-medium">
-              {s.label}
-            </div>
-          </div>
+            key={i}
+            className="w-[5px] rounded-t-sm"
+            style={{
+              height: `${h}px`,
+              background: "linear-gradient(to top, #ec4899, #8b5cf6)",
+            }}
+          />
         ))}
       </div>
     </div>
   );
 }
 
+export function HeroSection() {
+  const [searchQuery, setSearchQuery] = useState("");
+
+  return (
+    <section className="pt-[70px] bg-[#0d0d2b] min-h-[88vh] md:min-h-[650px] flex items-center overflow-hidden relative">
+      <DecorativeDots />
+
+      <div className="max-w-[1200px] mx-auto px-6 w-full relative z-[1]">
+        <div className="flex items-center gap-0 py-10 md:py-14">
+
+          {/* ── Left column ── */}
+          <div className="flex-[0_0_50%] max-w-[50%]">
+
+            <div className="flex items-center gap-2 mb-6">
+              <span className="text-white/40 text-[13px] italic font-light">Start from here</span>
+              <svg className="w-5 h-5 text-white/25" viewBox="0 0 28 28" fill="none">
+                <path d="M5 8 C9 9 13 15 15 21 C17 27 21 27 25 26" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                <path d="M21 23 L25 26 L21 29" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+
+            <h1 className="text-[clamp(2rem,4vw,3rem)] font-bold text-white leading-[1.15] tracking-[-0.02em] mb-5">
+              Teach From Anywhere.
+              <br />
+              Earn <span className="text-accent">Every Month.</span>
+            </h1>
+
+            <p className="text-[15px] text-white/55 leading-[1.75] mb-8 max-w-[480px]">
+              Turn your knowledge into steady income. Create courses, offer tutoring,
+              and reach learners across Botswana and beyond.
+            </p>
+
+            <div className="bg-white rounded-[10px] shadow-2xl flex items-center h-[58px] overflow-hidden max-w-[560px]">
+              <div className="flex items-center gap-2.5 px-4 flex-[2] h-full">
+                <Search className="w-[18px] h-[18px] text-neutral-400 shrink-0" />
+                <input
+                  type="text"
+                  placeholder="What are you looking for?"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full h-full text-[14px] text-neutral-700 placeholder:text-neutral-400 outline-none bg-transparent"
+                />
+              </div>
+              <div className="w-px h-8 bg-neutral-200 shrink-0" />
+              <div className="flex items-center gap-1.5 px-4 flex-1 h-full cursor-pointer">
+                <span className="text-[13px] text-neutral-400 truncate">Select category</span>
+                <ChevronDown className="w-4 h-4 shrink-0 text-neutral-400" />
+              </div>
+              <button className="h-full px-7 bg-accent text-white text-[14px] font-semibold hover:bg-accent-hover transition-colors whitespace-nowrap shrink-0">
+                Search now
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 mt-4 flex-wrap">
+              <span className="text-white text-[12px] font-bold">Popular searches:</span>
+              {popularSearches.map((tag, i) => (
+                <span key={tag} className="flex items-center gap-2">
+                  <button
+                    className="text-white/50 text-[12px] hover:text-white transition-colors"
+                    onClick={() => setSearchQuery(tag)}
+                  >
+                    {tag}
+                  </button>
+                  {i < popularSearches.length - 1 && (
+                    <span className="text-white/20 text-[12px]">,</span>
+                  )}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Right column ── */}
+          <div className="flex-[0_0_50%] max-w-[50%] relative hidden md:block h-[460px]">
+
+            {/* Layer 1: Main tutor photo circle — large, center-left */}
+            <div
+              className="absolute z-[10]"
+              style={{
+                left: "8%",
+                top: "5%",
+                width: "210px",
+                height: "210px",
+                borderRadius: "50%",
+                overflow: "hidden",
+                border: "4px solid rgba(255,255,255,0.12)",
+              }}
+            >
+              {/* Replace with: <Image src="/images/tutor-1.jpg" fill style={{objectFit:"cover"}} alt="Tutor" /> */}
+              <div className="w-full h-full bg-gradient-to-br from-teal-400 to-teal-600" />
+            </div>
+
+            {/* Layer 2: Second tutor photo circle — smaller, bottom-right of first */}
+            <div
+              className="absolute z-[9]"
+              style={{
+                left: "32%",
+                top: "32%",
+                width: "165px",
+                height: "165px",
+                borderRadius: "50%",
+                overflow: "hidden",
+                border: "4px solid rgba(255,255,255,0.10)",
+              }}
+            >
+              {/* Replace with: <Image src="/images/tutor-2.jpg" fill style={{objectFit:"cover"}} alt="Tutor" /> */}
+              <div className="w-full h-full bg-gradient-to-br from-blue-400 to-indigo-500" />
+            </div>
+
+            {/* Layer 3: Tutor name list card — right side, no red tabs */}
+            <div
+              className="absolute z-[30] bg-white rounded-2xl shadow-2xl overflow-hidden"
+              style={{
+                right: "0%",
+                top: "0%",
+                width: "210px",
+              }}
+            >
+              {verifiedTutors.map((tutor, i) => (
+                <div
+                  key={tutor.initials}
+                  className="flex items-center gap-2.5 px-3.5 py-2.5"
+                  style={{
+                    borderBottom: i < verifiedTutors.length - 1 ? "1px solid #f3f4f6" : "none",
+                  }}
+                >
+                  <div className="w-[34px] h-[34px] rounded-full bg-violet-100 flex items-center justify-center shrink-0">
+                    <span className="text-[10px] font-bold text-violet-700">{tutor.initials}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12px] font-semibold text-neutral-900 truncate">{tutor.name}</div>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <span className="text-[10px] text-neutral-400">{tutor.location}, BW</span>
+                      <CheckCircle className="w-[11px] h-[11px] text-green-500 shrink-0" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Layer 4: "Meet our verified professionals" badge — bottom, overlapping circles */}
+            <div
+              className="absolute z-[35] bg-white rounded-2xl shadow-xl p-4"
+              style={{
+                left: "4%",
+                bottom: "4%",
+                width: "255px",
+              }}
+            >
+              <p className="text-[9px] font-bold text-violet-600 uppercase tracking-widest mb-1">
+                Explore top talent
+              </p>
+              <p className="text-[13px] font-bold text-neutral-900 leading-snug mb-1.5">
+                Meet our verified professionals
+              </p>
+              <p className="text-[10px] text-neutral-500 leading-relaxed mb-3">
+                We have checked and verified every single professional to provide amazing quality work every time.
+              </p>
+              <div className="flex items-center gap-2">
+                <div className="flex -space-x-1.5">
+                  {["T", "K", "M", "L", "B"].map((letter) => (
+                    <div
+                      key={letter}
+                      className="w-[22px] h-[22px] rounded-full bg-violet-100 border-2 border-white flex items-center justify-center"
+                    >
+                      <span className="text-[7px] font-bold text-violet-700">{letter}</span>
+                    </div>
+                  ))}
+                </div>
+                <span className="text-[11px] font-bold text-violet-600">10M+ Professional</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}

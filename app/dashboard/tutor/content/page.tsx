@@ -760,7 +760,7 @@ export default function TutorContentPage() {
                     <td className="px-4 py-3">
                       <div className="text-[.875rem] font-semibold">{c.title}</div>
                       {c.average_rating != null && (
-                        <span className="text-[.75rem] text-amber-500 font-bold">{c.average_rating.toFixed(1)}★</span>
+                        <span className="text-[.75rem] text-amber-500 font-bold">{c.average_rating.toFixed(1)}</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -1722,7 +1722,7 @@ export default function TutorContentPage() {
           {/* Step 3: Review & Publish */}
           {wizardStep === 3 && (
             <div className="text-center py-5">
-              <div className="text-5xl mb-4">🚀</div>
+              <div className="text-5xl mb-4">Create</div>
               <h4 className="text-lg font-bold mb-2">Ready to Create?</h4>
               <p className="text-sm text-neutral-500 mb-6 max-w-sm mx-auto">
                 Your course draft will be created. Add modules before submitting for review.

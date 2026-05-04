@@ -88,14 +88,14 @@ export default function TutorOverviewPage() {
   const displayName = profile?.first_name || "Tutor";
 
   const stats = [
-    { icon: "💰", label: "Monthly Earnings", value: fmt(dashboard.monthly_earnings), color: "bg-orange-50" },
-    { icon: "👥", label: "Active Students", value: String(dashboard.active_students), color: "bg-violet-50" },
-    { icon: "▶️", label: "Published Courses", value: String(dashboard.published_courses), color: "bg-green-50" },
-    { icon: "⭐", label: "Avg Rating", value: dashboard.average_rating ? String(dashboard.average_rating) : "—", color: "bg-amber-50" },
+    { icon: "$", label: "Monthly Earnings", value: fmt(dashboard.monthly_earnings), color: "bg-orange-50" },
+    { icon: "U", label: "Active Students", value: String(dashboard.active_students), color: "bg-violet-50" },
+    { icon: ">", label: "Published Courses", value: String(dashboard.published_courses), color: "bg-green-50" },
+    { icon: "R", label: "Avg Rating", value: dashboard.average_rating ? String(dashboard.average_rating) : "—", color: "bg-amber-50" },
   ];
 
   const peakRevenue = Math.max(...chart.map((m) => parseFloat(m.revenue)), 1);
-  const emojis = ["📐", "🔢", "📊", "💻", "📚", "🧪", "⚛️", "📈", "🎯", "🔬"];
+  const emojis = ["M", "N", "D", "T", "C", "S", "P", "G", "A", "B"];
   const colors = ["bg-violet-50", "bg-blue-50", "bg-orange-50", "bg-green-50", "bg-amber-50"];
   const reviewColors = ["bg-violet-600", "bg-green-600", "bg-orange-600"];
 
@@ -103,7 +103,7 @@ export default function TutorOverviewPage() {
     <div>
       <div className="mb-6">
         <h2 className="text-[1.3rem] font-extrabold tracking-[-0.02em]">
-          Welcome back, {displayName} 👋
+          Welcome back, {displayName}
         </h2>
         <p className="text-[.875rem] text-neutral-500 mt-1">
           Here&apos;s how your content is performing this month.
@@ -192,7 +192,7 @@ export default function TutorOverviewPage() {
                     </div>
                     {c.average_rating && (
                       <Badge variant={i === 2 ? "orange" : "violet"}>
-                        {c.average_rating}★
+                        {c.average_rating}
                       </Badge>
                     )}
                   </div>
@@ -229,7 +229,7 @@ export default function TutorOverviewPage() {
                           {r.comment ? `"${r.comment}"` : r.course_title}
                         </div>
                       </div>
-                      <div className="text-[.78rem] text-amber-500 font-bold">{r.rating}★</div>
+                      <div className="text-[.78rem] text-amber-500 font-bold">{r.rating}</div>
                     </div>
                   );
                 })}

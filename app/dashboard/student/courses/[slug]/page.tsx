@@ -427,7 +427,7 @@ function PlayerInner({ slug }: { slug: string }) {
                                 })}
                               </div>
                               {r.explanation && (
-                                <p className="text-[.75rem] text-neutral-500 mt-2 italic">💡 {r.explanation}</p>
+                                <p className="text-[.75rem] text-neutral-500 mt-2 italic">{r.explanation}</p>
                               )}
                             </div>
                           );

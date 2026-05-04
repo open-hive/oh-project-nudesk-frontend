@@ -61,9 +61,9 @@ export default function TutorEarningsPage() {
   }
 
   const stats = [
-    { icon: "📈", label: "This Month", value: fmt(data.monthly_earnings), color: "bg-orange-50" },
-    { icon: "💵", label: "Total Earnings", value: fmt(data.total_earnings), color: "bg-green-50" },
-    { icon: "📚", label: "Paid Courses", value: String(data.per_course.length), color: "bg-violet-50" },
+    { icon: "M", label: "This Month", value: fmt(data.monthly_earnings), color: "bg-orange-50" },
+    { icon: "T", label: "Total Earnings", value: fmt(data.total_earnings), color: "bg-green-50" },
+    { icon: "C", label: "Paid Courses", value: String(data.per_course.length), color: "bg-violet-50" },
   ];
 
   // Find peak month revenue for chart bar scaling

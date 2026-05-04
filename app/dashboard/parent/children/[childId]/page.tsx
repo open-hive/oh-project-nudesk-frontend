@@ -262,7 +262,7 @@ export default function ChildDetailPage() {
                 },
                 {
                   icon: <TrendingUp className="w-3.5 h-3.5" />,
-                  value: `${child.stats.learning_streak_days ?? 0} 🔥`,
+                  value: String(child.stats.learning_streak_days ?? 0),
                   label: "Day Streak",
                   color: "text-orange-500",
                 },

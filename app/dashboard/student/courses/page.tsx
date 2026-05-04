@@ -112,7 +112,7 @@ export default function StudentCoursesPage() {
 
   const gradient = (i: number) =>
     ["from-violet-50 to-violet-100", "from-orange-50 to-orange-100", "from-green-50 to-emerald-100", "from-blue-50 to-blue-100"][i % 4];
-  const emoji = (i: number) => ["📐", "⚛️", "🧪", "💻"][i % 4];
+  const emoji = (i: number) => ["M", "P", "S", "T"][i % 4];
   const colorCycle = (i: number): "violet" | "orange" | "green" =>
     (["violet", "orange", "green"] as const)[i % 3];
 

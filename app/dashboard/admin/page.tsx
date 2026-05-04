@@ -39,18 +39,18 @@ export default function AdminOverviewPage() {
 
   const stats = data
     ? [
-        { icon: "💰", label: "GMV This Month", value: fmt(Number(data.gmv_monthly)), color: "bg-violet-50" },
-        { icon: "👥", label: "Active Students", value: num(data.active_students), color: "bg-orange-50" },
-        { icon: "⭐", label: "Active Tutors", value: num(data.active_tutors), color: "bg-green-50" },
-        { icon: "👪", label: "Active Parents", value: num(data.active_parents), color: "bg-blue-50" },
-        { icon: "▶️", label: "Published Courses", value: num(data.published_courses), color: "bg-amber-50" },
+        { icon: "$", label: "GMV This Month", value: fmt(Number(data.gmv_monthly)), color: "bg-violet-50" },
+        { icon: "U", label: "Active Students", value: num(data.active_students), color: "bg-orange-50" },
+        { icon: "T", label: "Active Tutors", value: num(data.active_tutors), color: "bg-green-50" },
+        { icon: "P", label: "Active Parents", value: num(data.active_parents), color: "bg-blue-50" },
+        { icon: ">", label: "Published Courses", value: num(data.published_courses), color: "bg-amber-50" },
       ]
     : [];
 
   const actions = data
     ? [
         {
-          icon: "📋",
+          icon: "A",
           title: "Tutor Applications",
           desc: `${data.pending_tutor_applications} awaiting review`,
           badge: data.pending_tutor_applications > 0 ? String(data.pending_tutor_applications) : null,
@@ -58,7 +58,7 @@ export default function AdminOverviewPage() {
           href: "/dashboard/admin/applications",
         },
         {
-          icon: "📚",
+          icon: "C",
           title: "Content Reviews",
           desc: `${data.pending_courses} courses pending`,
           badge: data.pending_courses > 0 ? String(data.pending_courses) : null,
@@ -66,7 +66,7 @@ export default function AdminOverviewPage() {
           href: "/dashboard/admin/content",
         },
         {
-          icon: "📝",
+          icon: "S",
           title: "Study Guides",
           desc: `${data.pending_study_guides} pending review`,
           badge: data.pending_study_guides > 0 ? String(data.pending_study_guides) : null,
@@ -74,7 +74,7 @@ export default function AdminOverviewPage() {
           href: null,
         },
         {
-          icon: "👥",
+          icon: "U",
           title: "Total Users",
           desc: `${num(data.total_users)} registered`,
           badge: null,
