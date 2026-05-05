@@ -50,13 +50,7 @@ export function HeroSection() {
           {/* ── Left column ── */}
           <div className="flex-[0_0_50%] max-w-[50%]">
 
-            <div className="flex items-center gap-2 mb-6">
-              <span className="text-white/40 text-[13px] italic font-light">Start from here</span>
-              <svg className="w-5 h-5 text-white/25" viewBox="0 0 28 28" fill="none">
-                <path d="M5 8 C9 9 13 15 15 21 C17 27 21 27 25 26" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                <path d="M21 23 L25 26 L21 29" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
+
 
             <h1 className="text-[clamp(2rem,4vw,3rem)] font-bold text-white leading-[1.15] tracking-[-0.02em] mb-5">
               Teach From Anywhere.
