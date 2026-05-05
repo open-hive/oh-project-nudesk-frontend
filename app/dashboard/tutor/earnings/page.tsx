@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CalendarDays, Wallet, BookOpen } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
 import { apiFetch } from "@/lib/api";
@@ -10,7 +11,7 @@ import type { TutorEarnings } from "@/lib/types";
 
 function fmt(v: string | number) {
   const n = typeof v === "string" ? parseFloat(v) : v;
-  return `P${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `BWP ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export default function TutorEarningsPage() {
@@ -61,9 +62,9 @@ export default function TutorEarningsPage() {
   }
 
   const stats = [
-    { icon: "M", label: "This Month", value: fmt(data.monthly_earnings), color: "bg-orange-50" },
-    { icon: "T", label: "Total Earnings", value: fmt(data.total_earnings), color: "bg-green-50" },
-    { icon: "C", label: "Paid Courses", value: String(data.per_course.length), color: "bg-violet-50" },
+    { icon: <CalendarDays className="w-4 h-4" />, label: "This Month", value: fmt(data.monthly_earnings), color: "bg-orange-50 text-orange-600" },
+    { icon: <Wallet className="w-4 h-4" />, label: "Total Earnings", value: fmt(data.total_earnings), color: "bg-green-50 text-green-600" },
+    { icon: <BookOpen className="w-4 h-4" />, label: "Paid Courses", value: String(data.per_course.length), color: "bg-violet-50 text-violet-600" },
   ];
 
   // Find peak month revenue for chart bar scaling

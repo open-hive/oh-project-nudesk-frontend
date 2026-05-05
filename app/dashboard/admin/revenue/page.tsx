@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Loader2, Download } from "lucide-react";
+import { Loader2, Download, Wallet, CreditCard, BadgeDollarSign, UserCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
@@ -10,9 +10,9 @@ import { apiFetch } from "@/lib/api";
 import type { AdminRevenueOverview, MonthlyRevenueRow } from "@/lib/types";
 
 function fmt(n: number) {
-  if (n >= 1_000_000) return `P${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `P${(n / 1_000).toFixed(1)}K`;
-  return `P${n.toFixed(2)}`;
+  if (n >= 1_000_000) return `BWP ${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `BWP ${(n / 1_000).toFixed(1)}K`;
+  return `BWP ${n.toFixed(2)}`;
 }
 
 export default function AdminRevenuePage() {
@@ -78,10 +78,10 @@ export default function AdminRevenuePage() {
   }
 
   const stats = [
-    { icon: "$", label: "GMV This Month", value: fmt(Number(overview.gmv_monthly)), sub: `YTD: ${fmt(Number(overview.gmv_ytd))}`, color: "bg-violet-50" },
-    { icon: "C", label: "Platform Commission", value: fmt(Number(overview.commission_monthly)), sub: `YTD: ${fmt(Number(overview.commission_ytd))}`, color: "bg-orange-50" },
-    { icon: "G", label: "YTD GMV", value: fmt(Number(overview.gmv_ytd)), sub: `${overview.total_transactions.toLocaleString()} transactions`, color: "bg-green-50" },
-    { icon: "U", label: "Avg Revenue / User", value: overview.avg_revenue_per_user ? `P${Number(overview.avg_revenue_per_user).toFixed(2)}` : "—", sub: `+${overview.new_students_monthly} students this month`, color: "bg-amber-50" },
+    { icon: <Wallet className="w-4 h-4" />, label: "GMV This Month", value: fmt(Number(overview.gmv_monthly)), sub: `YTD: ${fmt(Number(overview.gmv_ytd))}`, color: "bg-violet-50 text-violet-600" },
+    { icon: <CreditCard className="w-4 h-4" />, label: "Platform Commission", value: fmt(Number(overview.commission_monthly)), sub: `YTD: ${fmt(Number(overview.commission_ytd))}`, color: "bg-orange-50 text-orange-600" },
+    { icon: <BadgeDollarSign className="w-4 h-4" />, label: "YTD GMV", value: fmt(Number(overview.gmv_ytd)), sub: `${overview.total_transactions.toLocaleString()} transactions`, color: "bg-green-50 text-green-600" },
+    { icon: <UserCheck className="w-4 h-4" />, label: "Avg Revenue / User", value: overview.avg_revenue_per_user ? `BWP ${Number(overview.avg_revenue_per_user).toFixed(2)}` : "—", sub: `+${overview.new_students_monthly} students this month`, color: "bg-amber-50 text-amber-600" },
   ];
 
   return (

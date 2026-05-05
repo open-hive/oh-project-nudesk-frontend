@@ -5,12 +5,13 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth-context";
 import { apiFetch } from "@/lib/api";
+import { Wallet, Users, Briefcase, UsersRound, BookOpen, FileSignature, FileCheck, FileSearch, UsersIcon } from "lucide-react";
 import type { AdminDashboard, MonthlyRevenueRow } from "@/lib/types";
 
 function fmt(n: number) {
-  if (n >= 1_000_000) return `P${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `P${(n / 1_000).toFixed(0)}K`;
-  return `P${n}`;
+  if (n >= 1_000_000) return `BWP ${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `BWP ${(n / 1_000).toFixed(0)}K`;
+  return `BWP ${n}`;
 }
 
 function num(n: number) {
@@ -39,18 +40,18 @@ export default function AdminOverviewPage() {
 
   const stats = data
     ? [
-        { icon: "$", label: "GMV This Month", value: fmt(Number(data.gmv_monthly)), color: "bg-violet-50" },
-        { icon: "U", label: "Active Students", value: num(data.active_students), color: "bg-orange-50" },
-        { icon: "T", label: "Active Tutors", value: num(data.active_tutors), color: "bg-green-50" },
-        { icon: "P", label: "Active Parents", value: num(data.active_parents), color: "bg-blue-50" },
-        { icon: ">", label: "Published Courses", value: num(data.published_courses), color: "bg-amber-50" },
+        { icon: <Wallet className="w-4 h-4" />, label: "GMV This Month", value: fmt(Number(data.gmv_monthly)), color: "bg-violet-50 text-violet-600" },
+        { icon: <Users className="w-4 h-4" />, label: "Active Students", value: num(data.active_students), color: "bg-orange-50 text-orange-600" },
+        { icon: <Briefcase className="w-4 h-4" />, label: "Active Tutors", value: num(data.active_tutors), color: "bg-green-50 text-green-600" },
+        { icon: <UsersRound className="w-4 h-4" />, label: "Active Parents", value: num(data.active_parents), color: "bg-blue-50 text-blue-600" },
+        { icon: <BookOpen className="w-4 h-4" />, label: "Published Courses", value: num(data.published_courses), color: "bg-amber-50 text-amber-600" },
       ]
     : [];
 
   const actions = data
     ? [
         {
-          icon: "A",
+          icon: <FileSignature className="w-4 h-4 text-neutral-600" />,
           title: "Tutor Applications",
           desc: `${data.pending_tutor_applications} awaiting review`,
           badge: data.pending_tutor_applications > 0 ? String(data.pending_tutor_applications) : null,
@@ -58,7 +59,7 @@ export default function AdminOverviewPage() {
           href: "/dashboard/admin/applications",
         },
         {
-          icon: "C",
+          icon: <FileCheck className="w-4 h-4 text-neutral-600" />,
           title: "Content Reviews",
           desc: `${data.pending_courses} courses pending`,
           badge: data.pending_courses > 0 ? String(data.pending_courses) : null,
@@ -66,7 +67,7 @@ export default function AdminOverviewPage() {
           href: "/dashboard/admin/content",
         },
         {
-          icon: "S",
+          icon: <FileSearch className="w-4 h-4 text-neutral-600" />,
           title: "Study Guides",
           desc: `${data.pending_study_guides} pending review`,
           badge: data.pending_study_guides > 0 ? String(data.pending_study_guides) : null,
@@ -74,7 +75,7 @@ export default function AdminOverviewPage() {
           href: null,
         },
         {
-          icon: "U",
+          icon: <UsersIcon className="w-4 h-4 text-neutral-600" />,
           title: "Total Users",
           desc: `${num(data.total_users)} registered`,
           badge: null,

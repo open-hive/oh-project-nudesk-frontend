@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, AlertCircle, GraduationCap, Users, BookOpen, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
@@ -37,6 +37,7 @@ function SignInInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionExpired = searchParams.get("session_expired") === "1";
+  const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const toast = useToast();
   const { login } = useAuth();
 
@@ -68,14 +69,72 @@ function SignInInner() {
     }
   }
 
+  if (!selectedRole) {
+    return (
+      <div className="w-full max-w-[800px]">
+        <div className="text-center mb-12">
+          <h1 className="text-[2rem] font-extrabold tracking-tight mb-3">
+            Choose your role
+          </h1>
+          <p className="text-base text-neutral-500">
+            Select how you'll be using NuDesk to continue.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <button
+            onClick={() => setSelectedRole("child")}
+            className="flex flex-col items-center justify-center p-10 bg-white border border-neutral-200 rounded-3xl hover:border-violet-500 hover:ring-1 hover:ring-violet-500 transition-all text-center group h-full aspect-square"
+          >
+            <div className="w-20 h-20 rounded-full bg-violet-50 text-violet-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+              <GraduationCap className="w-10 h-10" />
+            </div>
+            <h3 className="text-lg font-bold text-neutral-900 mb-2">Child</h3>
+            <p className="text-sm text-neutral-500">Log in to your student dashboard</p>
+          </button>
+
+          <button
+            onClick={() => setSelectedRole("parent")}
+            className="flex flex-col items-center justify-center p-10 bg-white border border-neutral-200 rounded-3xl hover:border-emerald-500 hover:ring-1 hover:ring-emerald-500 transition-all text-center group h-full aspect-square"
+          >
+            <div className="w-20 h-20 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+              <Users className="w-10 h-10" />
+            </div>
+            <h3 className="text-lg font-bold text-neutral-900 mb-2">Parent</h3>
+            <p className="text-sm text-neutral-500">Manage your children's learning</p>
+          </button>
+
+          <button
+            onClick={() => setSelectedRole("tutor")}
+            className="flex flex-col items-center justify-center p-10 bg-white border border-neutral-200 rounded-3xl hover:border-blue-500 hover:ring-1 hover:ring-blue-500 transition-all text-center group h-full aspect-square"
+          >
+            <div className="w-20 h-20 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+              <BookOpen className="w-10 h-10" />
+            </div>
+            <h3 className="text-lg font-bold text-neutral-900 mb-2">Tutor</h3>
+            <p className="text-sm text-neutral-500">Access your teaching tools</p>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-[400px]">
-      <h1 className="text-[1.75rem] font-extrabold tracking-tight mb-1.5">
-        Sign In
+      <button
+        onClick={() => setSelectedRole(null)}
+        className="flex items-center text-sm font-medium text-neutral-500 hover:text-neutral-900 mb-6 transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4 mr-1.5" />
+        Back to roles
+      </button>
+
+      <h1 className="text-[1.75rem] font-extrabold tracking-tight mb-1.5 capitalize">
+        Sign In as {selectedRole}
       </h1>
       <p className="text-sm text-neutral-500 mb-7">
         No account?{" "}
-        <Link href="/auth/signup" className="text-primary font-semibold hover:underline">
+        <Link href={`/auth/signup?role=${selectedRole}`} className="text-primary font-semibold hover:underline">
           Sign up free &rarr;
         </Link>
       </p>

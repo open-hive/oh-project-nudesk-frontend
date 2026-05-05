@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Wallet, Users, BookOpen, Star, Book, Video, MonitorPlay, FileText, LayoutDashboard } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
 import { apiFetch } from "@/lib/api";
@@ -28,7 +29,7 @@ interface TutorReview {
 
 function fmt(v: string | number) {
   const n = typeof v === "string" ? parseFloat(v) : v;
-  return `$${n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  return `BWP ${n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
 export default function TutorOverviewPage() {
@@ -88,14 +89,20 @@ export default function TutorOverviewPage() {
   const displayName = profile?.first_name || "Tutor";
 
   const stats = [
-    { icon: "$", label: "Monthly Earnings", value: fmt(dashboard.monthly_earnings), color: "bg-orange-50" },
-    { icon: "U", label: "Active Students", value: String(dashboard.active_students), color: "bg-violet-50" },
-    { icon: ">", label: "Published Courses", value: String(dashboard.published_courses), color: "bg-green-50" },
-    { icon: "R", label: "Avg Rating", value: dashboard.average_rating ? String(dashboard.average_rating) : "—", color: "bg-amber-50" },
+    { icon: <Wallet className="w-4 h-4" />, label: "Monthly Earnings", value: fmt(dashboard.monthly_earnings), color: "bg-orange-50 text-orange-600" },
+    { icon: <Users className="w-4 h-4" />, label: "Active Students", value: String(dashboard.active_students), color: "bg-violet-50 text-violet-600" },
+    { icon: <BookOpen className="w-4 h-4" />, label: "Published Courses", value: String(dashboard.published_courses), color: "bg-green-50 text-green-600" },
+    { icon: <Star className="w-4 h-4" />, label: "Avg Rating", value: dashboard.average_rating ? String(dashboard.average_rating) : "—", color: "bg-amber-50 text-amber-600" },
   ];
 
   const peakRevenue = Math.max(...chart.map((m) => parseFloat(m.revenue)), 1);
-  const emojis = ["M", "N", "D", "T", "C", "S", "P", "G", "A", "B"];
+  const courseIcons = [
+    <Book key="1" className="w-4 h-4" />,
+    <Video key="2" className="w-4 h-4" />,
+    <MonitorPlay key="3" className="w-4 h-4" />,
+    <FileText key="4" className="w-4 h-4" />,
+    <LayoutDashboard key="5" className="w-4 h-4" />
+  ];
   const colors = ["bg-violet-50", "bg-blue-50", "bg-orange-50", "bg-green-50", "bg-amber-50"];
   const reviewColors = ["bg-violet-600", "bg-green-600", "bg-orange-600"];
 
@@ -182,7 +189,7 @@ export default function TutorOverviewPage() {
                 {topCourses.slice(0, 3).map((c, i) => (
                   <div key={c.id} className="flex items-center gap-3">
                     <div className={`w-9 h-9 rounded-lg ${colors[i % colors.length]} flex items-center justify-center text-base shrink-0`}>
-                      {emojis[i % emojis.length]}
+                      {courseIcons[i % courseIcons.length]}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-[.8rem] font-semibold truncate">{c.title}</div>

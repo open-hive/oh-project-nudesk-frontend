@@ -186,7 +186,7 @@ export default function ParentBrowsePage() {
                   <span className="text-base font-bold text-neutral-900">
                     {course.is_free
                       ? "Free"
-                      : `P${parseFloat(course.price).toLocaleString("en-BW", {
+                      : `BWP ${parseFloat(course.price).toLocaleString("en-BW", {
                           minimumFractionDigits: 2,
                         })}`}
                   </span>
