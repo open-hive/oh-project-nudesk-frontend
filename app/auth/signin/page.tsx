@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, AlertCircle, GraduationCap, Users, BookOpen, ArrowLeft } from "lucide-react";
@@ -10,14 +10,31 @@ import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
 import { ApiError } from "@/lib/api";
 
+type SelectedRole = "child" | "parent" | "tutor";
+
+function normalizeRole(value: string | null): SelectedRole | null {
+  if (value === "child" || value === "parent" || value === "tutor") return value;
+  if (value === "student") return "child";
+  return null;
+}
+
+function getRoleLabel(role: SelectedRole) {
+  if (role === "child") return "Child";
+  if (role === "parent") return "Parent";
+  return "Tutor";
+}
+
 function getRedirectPath(user: {
   role: string;
   is_profile_complete: boolean;
   is_approved: boolean;
-}): string {
+}, nextPath?: string | null): string {
   if (!user.is_profile_complete) return "/auth/profile-setup";
   if (user.role === "tutor" && !user.is_approved) return "/auth/pending-approval";
   if (user.role === "admin") return "/dashboard/admin";
+  if (nextPath && nextPath.startsWith("/") && !nextPath.startsWith("/auth")) {
+    return nextPath;
+  }
   return `/dashboard/${user.role}`;
 }
 
@@ -37,9 +54,26 @@ function SignInInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionExpired = searchParams.get("session_expired") === "1";
-  const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  const requestedRole = normalizeRole(searchParams.get("role"));
+  const nextPath = searchParams.get("next");
+  const [selectedRole, setSelectedRole] = useState<SelectedRole | null>(requestedRole);
   const toast = useToast();
   const { login } = useAuth();
+
+  useEffect(() => {
+    setSelectedRole(requestedRole);
+  }, [requestedRole]);
+
+  function updateRole(role: SelectedRole | null) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (role) {
+      params.set("role", role);
+    } else {
+      params.delete("role");
+    }
+    const qs = params.toString();
+    router.replace(qs ? `/auth/signin?${qs}` : "/auth/signin");
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -48,7 +82,7 @@ function SignInInner() {
     try {
       const user = await login(email, password);
       toast.success("Welcome back!");
-      router.push(getRedirectPath(user));
+      router.push(getRedirectPath(user, nextPath));
     } catch (err) {
       if (err instanceof ApiError) {
         const detail =
@@ -83,7 +117,7 @@ function SignInInner() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <button
-            onClick={() => setSelectedRole("child")}
+            onClick={() => updateRole("child")}
             className="flex flex-col items-center justify-center p-10 bg-white border border-neutral-200 rounded-3xl hover:border-violet-500 hover:ring-1 hover:ring-violet-500 transition-all text-center group h-full aspect-square"
           >
             <div className="w-20 h-20 rounded-full bg-violet-50 text-violet-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
@@ -94,7 +128,7 @@ function SignInInner() {
           </button>
 
           <button
-            onClick={() => setSelectedRole("parent")}
+            onClick={() => updateRole("parent")}
             className="flex flex-col items-center justify-center p-10 bg-white border border-neutral-200 rounded-3xl hover:border-emerald-500 hover:ring-1 hover:ring-emerald-500 transition-all text-center group h-full aspect-square"
           >
             <div className="w-20 h-20 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
@@ -105,7 +139,7 @@ function SignInInner() {
           </button>
 
           <button
-            onClick={() => setSelectedRole("tutor")}
+            onClick={() => updateRole("tutor")}
             className="flex flex-col items-center justify-center p-10 bg-white border border-neutral-200 rounded-3xl hover:border-blue-500 hover:ring-1 hover:ring-blue-500 transition-all text-center group h-full aspect-square"
           >
             <div className="w-20 h-20 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
@@ -122,15 +156,15 @@ function SignInInner() {
   return (
     <div className="w-full max-w-[400px]">
       <button
-        onClick={() => setSelectedRole(null)}
+        onClick={() => updateRole(null)}
         className="flex items-center text-sm font-medium text-neutral-500 hover:text-neutral-900 mb-6 transition-colors"
       >
         <ArrowLeft className="w-4 h-4 mr-1.5" />
         Back to roles
       </button>
 
-      <h1 className="text-[1.75rem] font-extrabold tracking-tight mb-1.5 capitalize">
-        Sign In as {selectedRole}
+      <h1 className="text-[1.75rem] font-extrabold tracking-tight mb-1.5">
+        Sign In as {getRoleLabel(selectedRole)}
       </h1>
       <p className="text-sm text-neutral-500 mb-7">
         No account?{" "}

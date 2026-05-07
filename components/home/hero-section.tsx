@@ -2,6 +2,7 @@
 
 import { Search, ChevronDown, CheckCircle } from "lucide-react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 const verifiedTutors = [
   { initials: "TS", name: "Thabo Serame", location: "Gaborone" },
@@ -38,7 +39,13 @@ function DecorativeDots() {
 }
 
 export function HeroSection() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
+
+  function handleSearch() {
+    const query = searchQuery.trim();
+    router.push(query ? `/tutors?search=${encodeURIComponent(query)}` : "/tutors");
+  }
 
   return (
     <section className="pt-[70px] bg-[#0d0d2b] min-h-[88vh] md:min-h-[650px] flex items-center overflow-hidden relative">
@@ -55,12 +62,12 @@ export function HeroSection() {
             <h1 className="text-[clamp(2rem,4vw,3rem)] font-bold text-white leading-[1.15] tracking-[-0.02em] mb-5">
               Teach From Anywhere.
               <br />
-              Earn <span className="text-accent">Every Month.</span>
+              Build <span className="text-accent">Recurring Income.</span>
             </h1>
 
             <p className="text-[15px] text-white/55 leading-[1.75] mb-8 max-w-[480px]">
-              Turn your knowledge into steady income. Create courses, offer tutoring,
-              and reach learners across Botswana and beyond.
+              Turn your knowledge into steady income. Set tutor subscription rates,
+              publish your full library, and reach learners across Botswana and beyond.
             </p>
 
             <div className="bg-white rounded-[10px] shadow-2xl flex items-center h-[58px] overflow-hidden max-w-[560px]">
@@ -68,9 +75,12 @@ export function HeroSection() {
                 <Search className="w-[18px] h-[18px] text-neutral-400 shrink-0" />
                 <input
                   type="text"
-                  placeholder="What are you looking for?"
+                  placeholder="Search tutors, subjects, or expertise"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSearch();
+                  }}
                   className="w-full h-full text-[14px] text-neutral-700 placeholder:text-neutral-400 outline-none bg-transparent"
                 />
               </div>
@@ -79,7 +89,10 @@ export function HeroSection() {
                 <span className="text-[13px] text-neutral-400 truncate">Select category</span>
                 <ChevronDown className="w-4 h-4 shrink-0 text-neutral-400" />
               </div>
-              <button className="h-full px-7 bg-accent text-white text-[14px] font-semibold hover:bg-accent-hover transition-colors whitespace-nowrap shrink-0">
+              <button
+                onClick={handleSearch}
+                className="h-full px-7 bg-accent text-white text-[14px] font-semibold hover:bg-accent-hover transition-colors whitespace-nowrap shrink-0"
+              >
                 Search now
               </button>
             </div>
@@ -90,7 +103,7 @@ export function HeroSection() {
                 <span key={tag} className="flex items-center gap-2">
                   <button
                     className="text-white/50 text-[12px] hover:text-white transition-colors"
-                    onClick={() => setSearchQuery(tag)}
+                    onClick={() => router.push(`/tutors?search=${encodeURIComponent(tag)}`)}
                   >
                     {tag}
                   </button>

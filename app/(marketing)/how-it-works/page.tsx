@@ -46,11 +46,11 @@ const faqs = [
   },
   {
     q: "Is NuDesk free for students?",
-    a: "Creating an account is free. You can browse all content and purchase individual courses. Subscribe to NuDesk Plus for unlimited access.",
+    a: "Creating an account is free. Learners only pay when they subscribe to a tutor on a weekly, monthly, or yearly plan.",
   },
   {
     q: "How do tutors get paid?",
-    a: "Tutors keep 80% of all revenue (90% on Pro). Payouts are processed monthly directly to your verified bank account.",
+    a: "Tutors set their own subscription rates and currently keep 85% of completed subscription revenue, with payouts tracked in their dashboard.",
   },
   {
     q: "Are NuDesk certificates recognized?",
@@ -71,8 +71,8 @@ export default function HowItWorksPage() {
               Designed for Serious Learning
             </h1>
             <p className="text-base text-neutral-500 max-w-[520px] leading-relaxed mt-3.5">
-              From application to certification, how NuDesk ensures
-              quality at every step.
+              From application to recurring subscriptions, this is how NuDesk
+              keeps quality high while making learning access simple.
             </p>
           </div>
 

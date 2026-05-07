@@ -15,7 +15,7 @@ const steps = [
     number: "02",
     Icon: UploadCloud,
     title: "Create Your Content",
-    desc: "Upload video modules, host live sessions, or sell study guides. Our tools make it simple no technical skills required.",
+    desc: "Upload video modules, host live sessions, or publish study guides that become available to your subscribers.",
     color: "bg-orange-500",
     light: "bg-accent-light",
     text: "text-accent",
@@ -24,7 +24,7 @@ const steps = [
     number: "03",
     Icon: Banknote,
     title: "Get Paid Every Month",
-    desc: "Students enrol, you earn. Track your income in real time and receive monthly payouts directly to your account no chasing anyone.",
+    desc: "Students subscribe on weekly, monthly, or yearly plans. You earn as your library grows and receive payouts directly to your account.",
     color: "bg-green-600",
     light: "bg-success-light",
     text: "text-success",
@@ -43,8 +43,8 @@ export function HowItWorksSection() {
             Three Steps to Start Earning
           </h2>
           <p className="text-base text-neutral-500 mx-auto leading-[1.65] mt-3.5">
-            From application to first payout the whole process is straightforward
-            and built to get you earning fast.
+            From application to first subscribers, the whole process is straightforward
+            and built to help tutors earn recurring income.
           </p>
         </div>
 

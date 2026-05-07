@@ -72,10 +72,28 @@ export default function ParentBrowsePage() {
       c.category_name.toLowerCase().includes(search.toLowerCase())
   );
 
+  async function enrollChild(course: Course, child: ChildSummary) {
+    if (!tokens) return;
+    try {
+      await parentApi.enrollChildInCourse(tokens.access, child.child_id, course.slug);
+      toast.success(`${child.first_name} was enrolled in ${course.title}.`);
+      setSelectedChild(null);
+      setSelectedCourse(null);
+      setSelectorOpen(false);
+    } catch {
+      toast.error("Failed to enroll child in this course.");
+    }
+  }
+
   function openEnroll(course: Course) {
     setSelectedCourse(course);
     if (children.length === 1) {
-      setSelectedChild(children[0]);
+      const child = children[0];
+      setSelectedChild(child);
+      if (course.is_free) {
+        void enrollChild(course, child);
+        return;
+      }
       setPayOpen(true);
     } else {
       setSelectorOpen(true);
@@ -85,6 +103,11 @@ export default function ParentBrowsePage() {
   function handleChildSelect(child: ChildSummary) {
     setSelectedChild(child);
     setSelectorOpen(false);
+    if (!selectedCourse) return;
+    if (selectedCourse.is_free) {
+      void enrollChild(selectedCourse, child);
+      return;
+    }
     setPayOpen(true);
   }
 
@@ -95,7 +118,7 @@ export default function ParentBrowsePage() {
           Browse &amp; Enroll
         </h2>
         <p className="text-sm text-neutral-500 mt-1">
-          Find courses and enroll your children.
+          Subscribe children to tutors and enroll them into the right courses.
         </p>
       </div>
 
@@ -186,9 +209,14 @@ export default function ParentBrowsePage() {
                   <span className="text-base font-bold text-neutral-900">
                     {course.is_free
                       ? "Free"
-                      : `BWP ${parseFloat(course.price).toLocaleString("en-BW", {
+                      : course.subscription_plan &&
+                        Number(course.subscription_plan.monthly_price) > 0
+                      ? `From BWP ${parseFloat(
+                          course.subscription_plan.monthly_price
+                        ).toLocaleString("en-BW", {
                           minimumFractionDigits: 2,
-                        })}`}
+                        })}/mo`
+                      : "Subscription"}
                   </span>
                   <button
                     onClick={() => openEnroll(course)}
@@ -196,7 +224,7 @@ export default function ParentBrowsePage() {
                     className="flex items-center gap-1.5 px-3.5 py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-[10px] text-xs font-semibold transition-colors"
                   >
                     <ShoppingCart className="w-3.5 h-3.5" />
-                    Enroll
+                    {course.is_free ? "Enroll" : "Subscribe"}
                   </button>
                 </div>
 
@@ -280,18 +308,34 @@ export default function ParentBrowsePage() {
             setSelectedCourse(null);
           }}
           onSuccess={() => {
-            toast.success(
-              `${selectedChild.first_name} has been enrolled in ${selectedCourse.title}!`
-            );
-            setPayOpen(false);
-            setSelectedChild(null);
-            setSelectedCourse(null);
+            void (async () => {
+              if (!tokens) return;
+              try {
+                await parentApi.enrollChildInCourse(
+                  tokens.access,
+                  selectedChild.child_id,
+                  selectedCourse.slug
+                );
+                toast.success(
+                  `${selectedChild.first_name} now has a subscription to ${selectedCourse.tutor_name} and is enrolled in ${selectedCourse.title}.`
+                );
+                setPayOpen(false);
+                setSelectedChild(null);
+                setSelectedCourse(null);
+              } catch {
+                toast.error("Subscription worked, but course enrollment still needs to be completed.");
+                setPayOpen(false);
+                setSelectedChild(null);
+                setSelectedCourse(null);
+              }
+            })();
           }}
-          contentType="course"
-          contentId={selectedCourse.id}
-          price={selectedCourse.price}
+          tutorId={selectedCourse.tutor}
+          tutorName={selectedCourse.tutor_name}
           title={selectedCourse.title}
+          plan={selectedCourse.subscription_plan}
           childId={selectedChild.child_id}
+          beneficiaryLabel={`${selectedChild.first_name} ${selectedChild.last_name}`}
         />
       )}
     </div>

@@ -1,15 +1,59 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, ShieldCheck, GraduationCap, BookOpen, Users } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpen,
+  Eye,
+  EyeOff,
+  GraduationCap,
+  ShieldCheck,
+  Users,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { apiFetch, ApiError } from "@/lib/api";
 import type { RegisterPayload } from "@/lib/types";
+
+type SelectedRole = "child" | "parent" | "tutor";
+
+const subjects = [
+  "Mathematics",
+  "Physics",
+  "Chemistry",
+  "Biology",
+  "Computer Science",
+  "Economics",
+  "Other",
+];
+
+const qualifications = [
+  "Bachelor's Degree",
+  "Master's Degree",
+  "PhD / Doctorate",
+  "Professional Certification",
+];
+
+function normalizeRole(value: string | null): SelectedRole | null {
+  if (value === "child" || value === "parent" || value === "tutor") return value;
+  if (value === "student") return "child";
+  return null;
+}
+
+function toRegisterRole(role: SelectedRole): RegisterPayload["role"] {
+  if (role === "child") return "student";
+  return role;
+}
+
+function getRoleLabel(role: SelectedRole) {
+  if (role === "child") return "Child";
+  if (role === "parent") return "Parent";
+  return "Tutor";
+}
 
 function PasswordInput({
   value,
@@ -53,23 +97,6 @@ function Label({ children }: { children: React.ReactNode }) {
   );
 }
 
-const subjects = [
-  "Mathematics",
-  "Physics",
-  "Chemistry",
-  "Biology",
-  "Computer Science",
-  "Economics",
-  "Other",
-];
-
-const qualifications = [
-  "Bachelor's Degree",
-  "Master's Degree",
-  "PhD / Doctorate",
-  "Professional Certification",
-];
-
 function extractErrors(body: Record<string, unknown>): string {
   const messages: string[] = [];
   for (const [key, val] of Object.entries(body)) {
@@ -85,24 +112,47 @@ function extractErrors(body: Record<string, unknown>): string {
 }
 
 export default function SignUpPage() {
-  const [tab, setTab] = useState<"student" | "tutor" | "parent">("student");
-  const [loading, setLoading] = useState(false);
+  return (
+    <Suspense>
+      <SignUpInner />
+    </Suspense>
+  );
+}
+
+function SignUpInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestedRole = normalizeRole(searchParams.get("role"));
+  const [selectedRole, setSelectedRole] = useState<SelectedRole | null>(requestedRole);
+  const [loading, setLoading] = useState(false);
   const toast = useToast();
 
-  // shared fields
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
-
-  // tutor-only fields
   const [subject, setSubject] = useState("");
   const [qualification, setQualification] = useState("");
   const [statement, setStatement] = useState("");
 
+  useEffect(() => {
+    setSelectedRole(requestedRole);
+  }, [requestedRole]);
+
+  function updateRole(role: SelectedRole | null) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (role) {
+      params.set("role", role);
+    } else {
+      params.delete("role");
+    }
+    const qs = params.toString();
+    router.replace(qs ? `/auth/signup?${qs}` : "/auth/signup");
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!selectedRole) return;
 
     if (password !== passwordConfirm) {
       toast.error("Passwords do not match.");
@@ -116,10 +166,10 @@ export default function SignUpPage() {
         username,
         password,
         password_confirm: passwordConfirm,
-        role: tab,
+        role: toRegisterRole(selectedRole),
       };
 
-      if (tab === "tutor") {
+      if (selectedRole === "tutor") {
         payload.subject_area = subject;
         payload.qualifications = qualification;
         payload.statement = statement;
@@ -142,75 +192,116 @@ export default function SignUpPage() {
     }
   }
 
+  if (!selectedRole) {
+    return (
+      <div className="w-full max-w-[800px]">
+        <div className="text-center mb-12">
+          <h1 className="text-[2rem] font-extrabold tracking-tight mb-3">
+            Choose your role
+          </h1>
+          <p className="text-base text-neutral-500">
+            Select how you&apos;ll use NuDesk and we&apos;ll take you to the right signup flow.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <button
+            onClick={() => updateRole("child")}
+            className="flex flex-col items-center justify-center p-10 bg-white border border-neutral-200 rounded-3xl hover:border-violet-500 hover:ring-1 hover:ring-violet-500 transition-all text-center group h-full aspect-square"
+          >
+            <div className="w-20 h-20 rounded-full bg-violet-50 text-violet-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+              <GraduationCap className="w-10 h-10" />
+            </div>
+            <h3 className="text-lg font-bold text-neutral-900 mb-2">Child</h3>
+            <p className="text-sm text-neutral-500">Create a learner account for classes, guides, and live sessions</p>
+          </button>
+
+          <button
+            onClick={() => updateRole("parent")}
+            className="flex flex-col items-center justify-center p-10 bg-white border border-neutral-200 rounded-3xl hover:border-emerald-500 hover:ring-1 hover:ring-emerald-500 transition-all text-center group h-full aspect-square"
+          >
+            <div className="w-20 h-20 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+              <Users className="w-10 h-10" />
+            </div>
+            <h3 className="text-lg font-bold text-neutral-900 mb-2">Parent</h3>
+            <p className="text-sm text-neutral-500">Manage children, subscriptions, and progress from one dashboard</p>
+          </button>
+
+          <button
+            onClick={() => updateRole("tutor")}
+            className="flex flex-col items-center justify-center p-10 bg-white border border-neutral-200 rounded-3xl hover:border-blue-500 hover:ring-1 hover:ring-blue-500 transition-all text-center group h-full aspect-square"
+          >
+            <div className="w-20 h-20 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+              <BookOpen className="w-10 h-10" />
+            </div>
+            <h3 className="text-lg font-bold text-neutral-900 mb-2">Tutor</h3>
+            <p className="text-sm text-neutral-500">Teach, set subscription pricing, and build recurring income</p>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const roleLabel = getRoleLabel(selectedRole);
+  const usernamePlaceholder =
+    selectedRole === "tutor"
+      ? "dr_sarah"
+      : selectedRole === "parent"
+      ? "parent_name"
+      : "amara_k";
+  const emailPlaceholder =
+    selectedRole === "tutor"
+      ? "you@university.edu"
+      : selectedRole === "parent"
+      ? "parent@example.com"
+      : "learner@example.com";
+
   return (
     <div className="w-full max-w-[420px]">
+      <button
+        onClick={() => updateRole(null)}
+        className="flex items-center text-sm font-medium text-neutral-500 hover:text-neutral-900 mb-6 transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4 mr-1.5" />
+        Back to roles
+      </button>
+
       <h1 className="text-[1.75rem] font-extrabold tracking-tight mb-1.5">
-        Create Account
+        Create Account as {roleLabel}
       </h1>
       <p className="text-sm text-neutral-500 mb-6">
         Already have an account?{" "}
         <Link
-          href="/auth/signin"
+          href={`/auth/signin?role=${selectedRole}`}
           className="text-primary font-semibold hover:underline"
         >
           Sign in &rarr;
         </Link>
       </p>
 
-      {/* Role tabs */}
-      <div className="inline-flex bg-neutral-100 rounded-xl p-1 gap-1 mb-6">
-        <button
-          type="button"
-          onClick={() => setTab("student")}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-            tab === "student"
-              ? "bg-white text-neutral-900 shadow-sm"
-              : "text-neutral-500 hover:text-neutral-700"
-          }`}
-        >
-          <GraduationCap className="w-4 h-4" />
-          Student
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab("tutor")}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-            tab === "tutor"
-              ? "bg-white text-neutral-900 shadow-sm"
-              : "text-neutral-500 hover:text-neutral-700"
-          }`}
-        >
-          <BookOpen className="w-4 h-4" />
-          Tutor
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab("parent")}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-            tab === "parent"
-              ? "bg-white text-neutral-900 shadow-sm"
-              : "text-neutral-500 hover:text-neutral-700"
-          }`}
-        >
-          <Users className="w-4 h-4" />
-          Parent
-        </button>
-      </div>
-
-      {tab === "tutor" && (
+      {selectedRole === "tutor" && (
         <div className="mb-4">
           <Badge variant="violet">
             <ShieldCheck className="w-3 h-3 inline mr-1" />
-            Manually reviewed &middot; 2-3 business days
+            Manually reviewed · usually 2-3 business days
           </Badge>
         </div>
       )}
 
-      {tab === "parent" && (
+      {selectedRole === "parent" && (
         <div className="mb-4">
           <Badge variant="orange">
             <Users className="w-3 h-3 inline mr-1" />
-            Monitor &amp; support your child&apos;s learning
+            Subscribe on behalf of linked children
+          </Badge>
+        </div>
+      )}
+
+      {selectedRole === "child" && (
+        <div className="mb-4">
+          <Badge variant="violet">
+            <GraduationCap className="w-3 h-3 inline mr-1" />
+            Student dashboard access after signup
           </Badge>
         </div>
       )}
@@ -219,7 +310,7 @@ export default function SignUpPage() {
         <div>
           <Label>Username</Label>
           <Input
-            placeholder={tab === "tutor" ? "dr_sarah" : tab === "parent" ? "parent_name" : "amara_k"}
+            placeholder={usernamePlaceholder}
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
@@ -230,16 +321,14 @@ export default function SignUpPage() {
           <Label>Email address</Label>
           <Input
             type="email"
-            placeholder={
-              tab === "tutor" ? "you@university.edu" : tab === "parent" ? "parent@example.com" : "you@example.com"
-            }
+            placeholder={emailPlaceholder}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
           />
         </div>
 
-        {tab === "tutor" && (
+        {selectedRole === "tutor" && (
           <>
             <div>
               <Label>Subject Expertise</Label>
@@ -250,8 +339,8 @@ export default function SignUpPage() {
                 required
               >
                 <option value="">Select subject...</option>
-                {subjects.map((s) => (
-                  <option key={s}>{s}</option>
+                {subjects.map((item) => (
+                  <option key={item}>{item}</option>
                 ))}
               </select>
             </div>
@@ -265,8 +354,8 @@ export default function SignUpPage() {
                 required
               >
                 <option value="">Select...</option>
-                {qualifications.map((q) => (
-                  <option key={q}>{q}</option>
+                {qualifications.map((item) => (
+                  <option key={item}>{item}</option>
                 ))}
               </select>
             </div>
@@ -275,8 +364,8 @@ export default function SignUpPage() {
               <Label>Brief Introduction</Label>
               <textarea
                 className="w-full px-3 py-2.5 text-sm rounded-xl border-[1.5px] border-neutral-200 bg-white text-neutral-900 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 resize-none"
-                rows={2}
-                placeholder="Your teaching experience and motivation..."
+                rows={3}
+                placeholder="Your teaching experience, expertise, and how you support learners..."
                 value={statement}
                 onChange={(e) => setStatement(e.target.value)}
                 required
@@ -288,7 +377,7 @@ export default function SignUpPage() {
         <div>
           <Label>Password</Label>
           <PasswordInput
-            id={tab === "tutor" ? "tu-pw" : "su-pw"}
+            id={`${selectedRole}-pw`}
             value={password}
             onChange={setPassword}
           />
@@ -297,7 +386,7 @@ export default function SignUpPage() {
         <div>
           <Label>Confirm Password</Label>
           <PasswordInput
-            id={tab === "tutor" ? "tu-pw-c" : "su-pw-c"}
+            id={`${selectedRole}-pw-confirm`}
             value={passwordConfirm}
             onChange={setPasswordConfirm}
             placeholder="Repeat your password"
@@ -306,16 +395,16 @@ export default function SignUpPage() {
 
         <Button
           type="submit"
-          variant={tab === "tutor" ? "accent" : "primary"}
+          variant={selectedRole === "tutor" ? "accent" : "primary"}
           size="lg"
           className="w-full"
           loading={loading}
         >
-          {tab === "tutor"
+          {selectedRole === "tutor"
             ? "Submit Application"
-            : tab === "parent"
+            : selectedRole === "parent"
             ? "Create Parent Account"
-            : "Create Student Account"}
+            : "Create Child Account"}
         </Button>
 
         <p className="text-[.75rem] text-neutral-500 text-center">

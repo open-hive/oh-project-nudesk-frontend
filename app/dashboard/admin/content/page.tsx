@@ -198,7 +198,7 @@ export default function AdminContentPage() {
                       <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Tutor</th>
                       <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Category</th>
                       <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Modules</th>
-                      <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Price</th>
+                      <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Access</th>
                       <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Submitted</th>
                       <th className="px-4 py-3"></th>
                     </tr>
@@ -217,7 +217,7 @@ export default function AdminContentPage() {
                         </td>
                         <td className="px-4 py-3"><Badge variant="violet">{c.category_name}</Badge></td>
                         <td className="px-4 py-3 text-[.82rem]">{c.module_count} modules</td>
-                        <td className="px-4 py-3 text-[.82rem] font-semibold">{c.is_free ? "Free" : `P${c.price}`}</td>
+                        <td className="px-4 py-3 text-[.82rem] font-semibold">{c.is_free ? "Free" : "Subscription"}</td>
                         <td className="px-4 py-3 text-[.78rem] text-neutral-500">
                           {new Date(c.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                         </td>
@@ -274,7 +274,7 @@ export default function AdminContentPage() {
                       <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Tutor</th>
                       <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Category</th>
                       <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Pages</th>
-                      <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Price</th>
+                      <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Access</th>
                       <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Submitted</th>
                       <th className="px-4 py-3"></th>
                     </tr>
@@ -293,7 +293,7 @@ export default function AdminContentPage() {
                         </td>
                         <td className="px-4 py-3"><Badge variant="violet">{g.category_name}</Badge></td>
                         <td className="px-4 py-3 text-[.82rem]">{g.page_count} pages</td>
-                        <td className="px-4 py-3 text-[.82rem] font-semibold">{g.is_free ? "Free" : `P${g.price}`}</td>
+                        <td className="px-4 py-3 text-[.82rem] font-semibold">{g.is_free ? "Free" : "Subscription"}</td>
                         <td className="px-4 py-3 text-[.78rem] text-neutral-500">
                           {new Date(g.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                         </td>
@@ -353,7 +353,7 @@ export default function AdminContentPage() {
                       <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Category</th>
                       <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Date &amp; Time</th>
                       <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Capacity</th>
-                      <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Price</th>
+                      <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Access</th>
                       <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Submitted</th>
                       <th className="px-4 py-3"></th>
                     </tr>
@@ -389,7 +389,7 @@ export default function AdminContentPage() {
                             {l.max_capacity}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-[.82rem] font-semibold">{l.is_free ? "Free" : `P${l.price}`}</td>
+                        <td className="px-4 py-3 text-[.82rem] font-semibold">{l.is_free ? "Free" : "Subscription"}</td>
                         <td className="px-4 py-3 text-[.78rem] text-neutral-500">
                           {new Date(l.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                         </td>
@@ -432,7 +432,7 @@ export default function AdminContentPage() {
           <>
             <ModalHead
               title={previewCourse.title}
-              subtitle={`${previewCourse.tutor_name} · ${previewCourse.category_name} · ${previewCourse.is_free ? "Free" : `P${previewCourse.price}`}`}
+              subtitle={`${previewCourse.tutor_name} · ${previewCourse.category_name} · ${previewCourse.is_free ? "Free" : "Subscription"}`}
               onClose={() => setPreviewCourse(null)}
             />
             <ModalBody>

@@ -89,9 +89,9 @@ export default function TutorOverviewPage() {
   const displayName = profile?.first_name || "Tutor";
 
   const stats = [
-    { icon: <Wallet className="w-4 h-4" />, label: "Monthly Earnings", value: fmt(dashboard.monthly_earnings), color: "bg-orange-50 text-orange-600" },
-    { icon: <Users className="w-4 h-4" />, label: "Active Students", value: String(dashboard.active_students), color: "bg-violet-50 text-violet-600" },
-    { icon: <BookOpen className="w-4 h-4" />, label: "Published Courses", value: String(dashboard.published_courses), color: "bg-green-50 text-green-600" },
+    { icon: <Wallet className="w-4 h-4" />, label: "Monthly Revenue", value: fmt(dashboard.monthly_earnings), color: "bg-orange-50 text-orange-600" },
+    { icon: <Users className="w-4 h-4" />, label: "Active Subscribers", value: String(dashboard.active_subscriptions), color: "bg-violet-50 text-violet-600" },
+    { icon: <BookOpen className="w-4 h-4" />, label: "Active Students", value: String(dashboard.active_students), color: "bg-green-50 text-green-600" },
     { icon: <Star className="w-4 h-4" />, label: "Avg Rating", value: dashboard.average_rating ? String(dashboard.average_rating) : "—", color: "bg-amber-50 text-amber-600" },
   ];
 
@@ -113,7 +113,7 @@ export default function TutorOverviewPage() {
           Welcome back, {displayName}
         </h2>
         <p className="text-[.875rem] text-neutral-500 mt-1">
-          Here&apos;s how your content is performing this month.
+          Here&apos;s how your subscriptions and content are performing this month.
         </p>
       </div>
 
@@ -194,7 +194,7 @@ export default function TutorOverviewPage() {
                     <div className="flex-1 min-w-0">
                       <div className="text-[.8rem] font-semibold truncate">{c.title}</div>
                       <div className="text-[.72rem] text-neutral-500">
-                        {c.student_count} students · {fmt(c.revenue)}/mo
+                        {c.student_count} students enrolled
                       </div>
                     </div>
                     {c.average_rating && (

@@ -3,9 +3,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { Loader2, CreditCard, ChevronDown } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { parentApi } from "@/lib/api";
+import { parentApi, paymentApi } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
-import type { ParentTransaction, ChildSummary } from "@/lib/types";
+import type { ParentTransaction, ChildSummary, TutorSubscription } from "@/lib/types";
 
 const STATUS_VARIANT: Record<
   ParentTransaction["status"],
@@ -21,15 +21,23 @@ const TYPE_LABELS: Record<string, string> = {
   course: "Course",
   study_guide: "Study Guide",
   live_class: "Live Class",
+  subscription: "Subscription",
 };
 
 export default function ParentPaymentsPage() {
   const { tokens } = useAuth();
 
   const [transactions, setTransactions] = useState<ParentTransaction[]>([]);
+  const [subscriptions, setSubscriptions] = useState<TutorSubscription[]>([]);
   const [children, setChildren] = useState<ChildSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedChildId, setSelectedChildId] = useState<number | "all">("all");
+
+  function normalizeSubscriptions(
+    data: TutorSubscription[] | { results?: TutorSubscription[] }
+  ) {
+    return Array.isArray(data) ? data : data.results ?? [];
+  }
 
   const load = useCallback(async () => {
     if (!tokens) return;
@@ -37,12 +45,14 @@ export default function ParentPaymentsPage() {
     try {
       const childId =
         selectedChildId === "all" ? undefined : selectedChildId;
-      const [txData, childrenData] = await Promise.all([
+      const [txData, childrenData, subscriptionData] = await Promise.all([
         parentApi.getTransactions(tokens.access, childId),
         parentApi.getChildren(tokens.access),
+        paymentApi.getMySubscriptions(tokens.access),
       ]);
       setTransactions(txData.results ?? []);
       setChildren(childrenData);
+      setSubscriptions(normalizeSubscriptions(subscriptionData));
     } finally {
       setLoading(false);
     }
@@ -55,15 +65,21 @@ export default function ParentPaymentsPage() {
   const totalSpent = transactions
     .filter((t) => t.status === "completed")
     .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+  const visibleSubscriptions = subscriptions.filter((subscription) =>
+    selectedChildId === "all" ? true : subscription.student === selectedChildId
+  );
+  const activeSubscriptions = visibleSubscriptions.filter(
+    (subscription) => subscription.is_currently_active
+  );
 
   return (
     <div className="space-y-5">
       <div>
         <h2 className="text-[1.3rem] font-extrabold tracking-[-0.02em]">
-          Payments
+          Payments &amp; Subscriptions
         </h2>
         <p className="text-sm text-neutral-500 mt-1">
-          Review all purchases made for your children.
+          Review every subscription and access payment made for your children.
         </p>
       </div>
 
@@ -80,6 +96,18 @@ export default function ParentPaymentsPage() {
               {totalSpent.toLocaleString("en-BW", {
                 minimumFractionDigits: 2,
               })}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center">
+            <CreditCard className="w-5 h-5 text-violet-600" />
+          </div>
+          <div>
+            <p className="text-xs text-neutral-500">Active Subscriptions</p>
+            <p className="text-xl font-bold text-neutral-900">
+              {activeSubscriptions.length}
             </p>
           </div>
         </div>
@@ -104,6 +132,60 @@ export default function ParentPaymentsPage() {
           </select>
           <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
         </div>
+      </div>
+
+      <div className="bg-white border-[1.5px] border-neutral-200 rounded-[20px] p-5">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div>
+            <h3 className="text-[.95rem] font-bold text-neutral-900">
+              Current Tutor Subscriptions
+            </h3>
+            <p className="text-xs text-neutral-500 mt-1">
+              Active or recently cancelled subscriptions still within their paid period.
+            </p>
+          </div>
+          <Badge variant="violet">{visibleSubscriptions.length} total</Badge>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center h-24">
+            <Loader2 className="w-5 h-5 animate-spin text-primary" />
+          </div>
+        ) : visibleSubscriptions.length === 0 ? (
+          <p className="text-sm text-neutral-400">No subscriptions found for this selection.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {visibleSubscriptions.map((subscription) => (
+              <div
+                key={subscription.reference}
+                className="rounded-2xl border border-neutral-200 p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-neutral-900 truncate">
+                      {subscription.tutor_name}
+                    </div>
+                    <div className="text-xs text-neutral-500 truncate">
+                      {subscription.student_name}
+                    </div>
+                  </div>
+                  <Badge variant={subscription.is_currently_active ? "green" : "neutral"}>
+                    {subscription.status}
+                  </Badge>
+                </div>
+                <div className="mt-3 flex items-center justify-between text-sm text-neutral-600">
+                  <span className="capitalize">{subscription.billing_cycle}</span>
+                  <span className="font-semibold">
+                    BWP {Number(subscription.amount).toFixed(2)}
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-neutral-400">
+                  Renews/ends {new Date(subscription.current_period_end).toLocaleDateString("en-ZA")}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Transactions table */}

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CalendarDays, Wallet, BookOpen } from "lucide-react";
+import { CalendarDays, Wallet, BookOpen, Repeat } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
 import { apiFetch } from "@/lib/api";
@@ -64,7 +64,8 @@ export default function TutorEarningsPage() {
   const stats = [
     { icon: <CalendarDays className="w-4 h-4" />, label: "This Month", value: fmt(data.monthly_earnings), color: "bg-orange-50 text-orange-600" },
     { icon: <Wallet className="w-4 h-4" />, label: "Total Earnings", value: fmt(data.total_earnings), color: "bg-green-50 text-green-600" },
-    { icon: <BookOpen className="w-4 h-4" />, label: "Paid Courses", value: String(data.per_course.length), color: "bg-violet-50 text-violet-600" },
+    { icon: <Repeat className="w-4 h-4" />, label: "Subscription Revenue", value: fmt(data.subscription_revenue), color: "bg-violet-50 text-violet-600" },
+    { icon: <BookOpen className="w-4 h-4" />, label: "Subscription Payments", value: String(data.subscription_transactions), color: "bg-blue-50 text-blue-600" },
   ];
 
   // Find peak month revenue for chart bar scaling
@@ -81,7 +82,7 @@ export default function TutorEarningsPage() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 mb-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5 mb-5">
         {stats.map((s) => (
           <div key={s.label} className="bg-white rounded-2xl border border-neutral-200 p-4">
             <div className={`w-8 h-8 rounded-lg ${s.color} flex items-center justify-center text-base mb-2`}>
@@ -127,11 +128,11 @@ export default function TutorEarningsPage() {
       {/* Per-course Revenue */}
       <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden">
         <div className="px-4 py-4 border-b-[1.5px] border-neutral-200 text-[.875rem] font-bold">
-          Revenue by Course
+          Course Library Performance
         </div>
         {data.per_course.length === 0 ? (
           <div className="px-4 py-8 text-center text-sm text-neutral-400">
-            No paid course revenue yet.
+            No subscriber activity has reached your courses yet.
           </div>
         ) : (
           <table className="w-full text-left">
@@ -139,7 +140,7 @@ export default function TutorEarningsPage() {
               <tr className="border-b border-neutral-200">
                 <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Course</th>
                 <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Students</th>
-                <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Revenue</th>
+                <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Attributed Revenue</th>
               </tr>
             </thead>
             <tbody>

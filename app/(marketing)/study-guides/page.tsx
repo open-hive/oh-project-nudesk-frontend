@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Search, FileText, Download, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,14 +19,23 @@ const gradients = [
 ];
 
 export default function StudyGuidesPage() {
+  const searchParams = useSearchParams();
   const [guides, setGuides] = useState<StudyGuide[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("");
-  const [freeOnly, setFreeOnly] = useState(false);
+  const [search, setSearch] = useState(searchParams.get("search") ?? "");
+  const [category, setCategory] = useState(searchParams.get("category") ?? "");
+  const [freeOnly, setFreeOnly] = useState(searchParams.get("is_free") === "true");
+  const [tutorFilter, setTutorFilter] = useState(searchParams.get("tutor") ?? "");
   const [next, setNext] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+
+  useEffect(() => {
+    setSearch(searchParams.get("search") ?? "");
+    setCategory(searchParams.get("category") ?? "");
+    setFreeOnly(searchParams.get("is_free") === "true");
+    setTutorFilter(searchParams.get("tutor") ?? "");
+  }, [searchParams]);
 
   const buildUrl = useCallback(
     (base = "/courses/study-guides/") => {
@@ -32,10 +43,11 @@ export default function StudyGuidesPage() {
       if (search) params.set("search", search);
       if (category) params.set("category", category);
       if (freeOnly) params.set("is_free", "true");
+      if (tutorFilter) params.set("tutor", tutorFilter);
       const qs = params.toString();
       return qs ? `${base}?${qs}` : base;
     },
-    [search, category, freeOnly]
+    [search, category, freeOnly, tutorFilter]
   );
 
   const fetchGuides = useCallback(async () => {
@@ -79,7 +91,7 @@ export default function StudyGuidesPage() {
             Study Guides
           </h1>
           <p className="text-base text-neutral-500 max-w-[520px] leading-relaxed mt-3.5">
-            Download expert-written study guides and reference materials across all subjects.
+            Download expert-written study guides and search by subject or tutor.
           </p>
         </div>
 
@@ -89,7 +101,7 @@ export default function StudyGuidesPage() {
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
             <input
               className="w-full pl-10 pr-3.5 py-2.5 border-[1.5px] border-neutral-200 rounded-[10px] text-sm bg-white outline-none focus:border-violet-600 focus:ring-2 focus:ring-violet-600/10"
-              placeholder="Search study guides..."
+              placeholder="Search study guides or tutors..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -149,7 +161,11 @@ export default function StudyGuidesPage() {
                         <div className="flex items-start justify-between gap-2 mb-1">
                           <div className="text-[.975rem] font-bold leading-[1.4] flex-1">{g.title}</div>
                           <Badge variant={g.is_free ? "green" : "amber"} className="shrink-0">
-                            {g.is_free ? "Free" : `P${g.price}`}
+                            {g.is_free
+                              ? "Free"
+                              : g.subscription_plan?.monthly_price
+                              ? `From BWP ${Number(g.subscription_plan.monthly_price).toFixed(0)}/mo`
+                              : "Subscription"}
                           </Badge>
                         </div>
                         <div className="text-[.75rem] text-neutral-400 mb-3">
@@ -157,7 +173,9 @@ export default function StudyGuidesPage() {
                         </div>
                         <p className="text-[.8rem] text-neutral-500 line-clamp-2 mb-3">{g.description}</p>
                         <div className="flex items-center justify-between">
-                          <span className="text-[.8rem] font-medium text-neutral-700">{g.tutor_name}</span>
+                          <Link href={`/tutors/${g.tutor}`} className="text-[.8rem] font-medium text-neutral-700 hover:text-violet-700">
+                            {g.tutor_name}
+                          </Link>
                           <span className="flex items-center gap-1 text-[.75rem] text-neutral-400">
                             <Download className="w-3.5 h-3.5" />
                             {g.download_count}

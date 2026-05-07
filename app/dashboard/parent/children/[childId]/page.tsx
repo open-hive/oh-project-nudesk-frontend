@@ -19,7 +19,14 @@ import { useAuth } from "@/lib/auth-context";
 import { parentApi } from "@/lib/api";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Badge } from "@/components/ui/badge";
-import type { ChildDetail, ChildCourseProgress } from "@/lib/types";
+import type {
+  Certificate,
+  ChildDetail,
+  ChildCourseProgress,
+  LearningActivityRecord,
+  LiveClassRegistration,
+  StudyGuideAccess,
+} from "@/lib/types";
 
 type Tab = "courses" | "live" | "guides" | "certs" | "activity";
 
@@ -31,36 +38,10 @@ const CERT_GRADIENTS = [
   "from-rose-600 to-rose-800",
 ];
 
-interface LiveClassItem {
-  id: number;
-  title: string;
-  tutor_name: string;
-  scheduled_at: string;
-  status: string;
-  duration_minutes: number;
-}
-
-interface StudyGuideItem {
-  id: number;
-  title: string;
-  description: string;
-  cover_image: string | null;
-  purchased_at: string;
-}
-
-interface CertItem {
-  id: number;
-  course_title: string;
-  issued_at: string;
-  download_url?: string;
-}
-
-interface ActivityItem {
-  id: number;
-  message: string;
-  created_at: string;
-  is_read: boolean;
-}
+type LiveClassItem = LiveClassRegistration;
+type StudyGuideItem = StudyGuideAccess;
+type CertItem = Certificate;
+type ActivityItem = LearningActivityRecord;
 
 export default function ChildDetailPage() {
   const { childId } = useParams<{ childId: string }>();
@@ -120,7 +101,7 @@ export default function ChildDetailPage() {
     setLiveLoading(true);
     try {
       const res = await parentApi.getChildLiveClasses(tokens.access, numericId);
-      setLiveClasses((res.results ?? []) as LiveClassItem[]);
+      setLiveClasses(res.results ?? []);
       setLiveLoaded(true);
     } finally {
       setLiveLoading(false);
@@ -132,7 +113,7 @@ export default function ChildDetailPage() {
     setGuidesLoading(true);
     try {
       const res = await parentApi.getChildStudyGuides(tokens.access, numericId);
-      setStudyGuides((res.results ?? []) as StudyGuideItem[]);
+      setStudyGuides(res.results ?? []);
       setGuidesLoaded(true);
     } finally {
       setGuidesLoading(false);
@@ -144,7 +125,7 @@ export default function ChildDetailPage() {
     setCertsLoading(true);
     try {
       const res = await parentApi.getChildCertificates(tokens.access, numericId);
-      setCerts((res.results ?? []) as CertItem[]);
+      setCerts(res.results ?? []);
       setCertsLoaded(true);
     } finally {
       setCertsLoading(false);
@@ -156,7 +137,7 @@ export default function ChildDetailPage() {
     setActivityLoading(true);
     try {
       const res = await parentApi.getChildActivity(tokens.access, numericId);
-      setActivityItems((res.results ?? []) as ActivityItem[]);
+      setActivityItems(res.results ?? []);
       setActivityLoaded(true);
     } finally {
       setActivityLoading(false);
@@ -386,11 +367,11 @@ export default function ChildDetailPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm text-neutral-900 truncate">
-                        {cls.title}
+                        {cls.class_title}
                       </p>
                       <p className="text-xs text-neutral-500">
                         {cls.tutor_name} ·{" "}
-                        {new Date(cls.scheduled_at).toLocaleDateString("en-ZA", {
+                        {new Date(cls.scheduled_date).toLocaleDateString("en-ZA", {
                           day: "numeric",
                           month: "short",
                           year: "numeric",
@@ -418,7 +399,7 @@ export default function ChildDetailPage() {
             (guidesLoading ? (
               <TabSpinner />
             ) : studyGuides.length === 0 ? (
-              <EmptyState message="No study guides purchased yet." />
+              <EmptyState message="No study guides unlocked yet." />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 {studyGuides.map((guide) => (
@@ -427,23 +408,15 @@ export default function ChildDetailPage() {
                     className="border border-neutral-100 rounded-2xl overflow-hidden hover:shadow-md transition-shadow"
                   >
                     <div className="aspect-video bg-gradient-to-br from-violet-50 to-violet-100 flex items-center justify-center">
-                      {guide.cover_image ? (
-                        <img
-                          src={guide.cover_image}
-                          alt={guide.title}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <FileText className="w-8 h-8 text-violet-300" />
-                      )}
+                      <FileText className="w-8 h-8 text-violet-300" />
                     </div>
                     <div className="p-3">
                       <p className="font-semibold text-sm text-neutral-900 truncate">
-                        {guide.title}
+                        {guide.guide_title}
                       </p>
                       <p className="text-xs text-neutral-400 mt-0.5">
-                        Purchased{" "}
-                        {new Date(guide.purchased_at).toLocaleDateString(
+                        Unlocked{" "}
+                        {new Date(guide.accessed_at).toLocaleDateString(
                           "en-ZA"
                         )}
                       </p>
@@ -483,15 +456,9 @@ export default function ChildDetailPage() {
                         year: "numeric",
                       })}
                     </p>
-                    {cert.download_url && (
-                      <a
-                        href={cert.download_url}
-                        download
-                        className="mt-3 inline-flex items-center gap-1 text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg font-semibold transition-colors"
-                      >
-                        Download
-                      </a>
-                    )}
+                    <p className="mt-3 text-xs opacity-70">
+                      Certificate ID: {cert.certificate_id}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -512,7 +479,7 @@ export default function ChildDetailPage() {
                   >
                     <div className="w-2 h-2 rounded-full bg-orange-400 mt-2 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-neutral-800">{item.message}</p>
+                      <p className="text-sm text-neutral-800">{item.description}</p>
                       <p className="text-xs text-neutral-400 mt-0.5">
                         {new Date(item.created_at).toLocaleDateString("en-ZA", {
                           day: "numeric",
@@ -523,9 +490,9 @@ export default function ChildDetailPage() {
                         })}
                       </p>
                     </div>
-                    {!item.is_read && (
-                      <span className="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0 mt-1.5" />
-                    )}
+                    <span className="text-[10px] uppercase tracking-[0.08em] text-neutral-400">
+                      {item.activity_type.replaceAll("_", " ")}
+                    </span>
                   </li>
                 ))}
               </ul>

@@ -265,7 +265,7 @@ export default function StudentCoursesPage() {
                         </div>
                       )}
                       <Badge variant={c.is_free ? "green" : "amber"} className="absolute top-3 right-3">
-                        {c.is_free ? "Free" : `P${c.price}`}
+                        {c.is_free ? "Free" : "Subscription"}
                       </Badge>
                     </div>
                     <div className="px-[18px] pt-4 pb-5">
@@ -302,7 +302,7 @@ export default function StudentCoursesPage() {
                             onClick={() => handleBuyCourse(c)}
                           >
                             <ShoppingCart className="w-3.5 h-3.5 mr-1.5" />
-                            Enroll — P{c.price}
+                            Subscribe to Unlock
                           </Button>
                         )}
                       </div>
@@ -320,14 +320,29 @@ export default function StudentCoursesPage() {
           open={!!paymentTarget}
           onClose={() => setPaymentTarget(null)}
           onSuccess={() => {
-            setPaymentTarget(null);
-            toast.success("Enrolled successfully!");
-            fetchEnrollments();
+            if (!tokens || !paymentTarget) return;
+            apiFetch("/students/enroll/", {
+              method: "POST",
+              token: tokens.access,
+              body: JSON.stringify({ course_slug: paymentTarget.slug }),
+            })
+              .then(() => {
+                toast.success("Subscription activated and course unlocked!");
+                setPaymentTarget(null);
+                fetchEnrollments();
+              })
+              .catch((e) => {
+                toast.error(
+                  e instanceof ApiError
+                    ? String((e.body as Record<string, string>).detail ?? "Enrollment failed.")
+                    : "Enrollment failed."
+                );
+              });
           }}
-          contentType="course"
-          contentId={paymentTarget.id}
-          price={paymentTarget.price}
+          tutorId={paymentTarget.tutor}
+          tutorName={paymentTarget.tutor_name}
           title={paymentTarget.title}
+          plan={paymentTarget.subscription_plan}
         />
       )}
     </div>

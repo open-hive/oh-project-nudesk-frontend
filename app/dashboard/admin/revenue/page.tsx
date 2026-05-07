@@ -112,7 +112,7 @@ export default function AdminRevenuePage() {
       {/* Revenue Chart */}
       {breakdown.length > 0 && (
         <div className="bg-white rounded-2xl border border-neutral-200 p-5 mb-5">
-          <div className="text-[.9rem] font-bold mb-4">Revenue Trend</div>
+          <div className="text-[.9rem] font-bold mb-4">Subscription Revenue Trend</div>
           <div className="flex items-end gap-2 h-[180px]">
             {(() => {
               const rows = breakdown.slice(0, 12).reverse();

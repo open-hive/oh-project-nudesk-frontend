@@ -15,10 +15,16 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PaymentModal } from "@/components/dashboard/payment-modal";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
-import { apiFetch, ApiError } from "@/lib/api";
-import type { CourseDetail, PaginatedResponse, Enrollment } from "@/lib/types";
+import { apiFetch, parentApi, ApiError } from "@/lib/api";
+import type {
+  ChildSummary,
+  CourseDetail,
+  PaginatedResponse,
+  Enrollment,
+} from "@/lib/types";
 
 const contentIcon: Record<string, React.ElementType> = {
   video: Video,
@@ -40,6 +46,10 @@ export default function CourseDetailPage({
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
   const [enrollmentId, setEnrollmentId] = useState<number | null>(null);
+  const [subscribeOpen, setSubscribeOpen] = useState(false);
+  const [children, setChildren] = useState<ChildSummary[]>([]);
+  const [selectedChild, setSelectedChild] = useState<ChildSummary | null>(null);
+  const [selectorOpen, setSelectorOpen] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -54,32 +64,81 @@ export default function CourseDetailPage({
       }
     }
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slug]);
+  }, [router, slug, toast]);
 
-  // Check if student is already enrolled
   useEffect(() => {
     if (!tokens?.access || !user || user.role !== "student") return;
     apiFetch<PaginatedResponse<Enrollment>>("/students/enrollments/", {
       token: tokens.access,
     })
-      .then((d) => {
-        const match = d.results.find((e) => e.course_slug === slug);
+      .then((data) => {
+        const match = data.results.find((item) => item.course_slug === slug);
         if (match) setEnrollmentId(match.id);
       })
       .catch(() => {});
-  }, [tokens, user, slug]);
+  }, [slug, tokens, user]);
+
+  useEffect(() => {
+    if (!tokens?.access || user?.role !== "parent") return;
+    parentApi
+      .getChildren(tokens.access)
+      .then((items) => setChildren(items))
+      .catch(() => setChildren([]));
+  }, [tokens, user?.role]);
+
+  async function enrollParentChild(child: ChildSummary) {
+    if (!tokens?.access || !course) return;
+    await parentApi.enrollChildInCourse(tokens.access, child.child_id, course.slug);
+    toast.success(`${child.first_name} was enrolled successfully!`);
+  }
 
   async function handleEnroll() {
-    if (!user) {
-      router.push(`/auth/signin?next=/courses/${slug}`);
-      return;
-    }
-    if (user.role !== "student") {
-      toast.error("Only students can enroll in courses.");
-      return;
-    }
     if (!course) return;
+
+    if (!user) {
+      if (course.is_free) {
+        router.push(`/auth/signin?role=child&next=/courses/${slug}`);
+      } else {
+        setSubscribeOpen(true);
+      }
+      return;
+    }
+
+    if (user.role === "parent") {
+      if (children.length === 0) {
+        toast.error("Link a child first before subscribing or enrolling.");
+        return;
+      }
+      if (children.length === 1) {
+        const child = children[0];
+        setSelectedChild(child);
+        if (course.is_free) {
+          setEnrolling(true);
+          try {
+            await enrollParentChild(child);
+          } catch (err) {
+            const msg =
+              err instanceof ApiError && typeof err.body?.detail === "string"
+                ? err.body.detail
+                : "Enrollment failed.";
+            toast.error(msg);
+          } finally {
+            setEnrolling(false);
+          }
+          return;
+        }
+        setSubscribeOpen(true);
+        return;
+      }
+      setSelectorOpen(true);
+      return;
+    }
+
+    if (user.role !== "student") {
+      toast.error("Only students or parents can unlock course access.");
+      return;
+    }
+
     setEnrolling(true);
     try {
       if (course.is_free) {
@@ -91,26 +150,12 @@ export default function CourseDetailPage({
         setEnrollmentId(enrollment.id);
         toast.success("Enrolled successfully!");
       } else {
-        const res = await apiFetch<{ checkout_url: string }>(
-          "/payments/checkout/",
-          {
-            token: tokens!.access,
-            method: "POST",
-            body: JSON.stringify({
-              content_type: "course",
-              slug,
-            }),
-          }
-        );
-        if (res.checkout_url) {
-          window.location.href = res.checkout_url;
-        } else {
-          toast.success("Payment initiated.");
-        }
+        setSubscribeOpen(true);
       }
     } catch (err) {
       if (err instanceof ApiError) {
-        const msg = typeof err.body?.detail === "string" ? err.body.detail : "Enrollment failed.";
+        const msg =
+          typeof err.body?.detail === "string" ? err.body.detail : "Enrollment failed.";
         toast.error(msg);
       } else {
         toast.error("Something went wrong.");
@@ -118,6 +163,28 @@ export default function CourseDetailPage({
     } finally {
       setEnrolling(false);
     }
+  }
+
+  async function handleChildSelect(child: ChildSummary) {
+    if (!course) return;
+    setSelectedChild(child);
+    setSelectorOpen(false);
+    if (course.is_free) {
+      setEnrolling(true);
+      try {
+        await enrollParentChild(child);
+      } catch (err) {
+        const msg =
+          err instanceof ApiError && typeof err.body?.detail === "string"
+            ? err.body.detail
+            : "Enrollment failed.";
+        toast.error(msg);
+      } finally {
+        setEnrolling(false);
+      }
+      return;
+    }
+    setSubscribeOpen(true);
   }
 
   if (loading) {
@@ -140,19 +207,16 @@ export default function CourseDetailPage({
 
   if (!course) return null;
 
-  const sortedModules = [...(course.modules || [])].sort(
-    (a, b) => a.order - b.order
-  );
+  const sortedModules = [...(course.modules || [])].sort((a, b) => a.order - b.order);
   const avgRating = course.average_rating ?? 0;
   const totalDuration = sortedModules.reduce(
-    (sum, m) => sum + (m.duration_minutes || 0),
+    (sum, item) => sum + (item.duration_minutes || 0),
     0
   );
 
   return (
     <section className="py-20">
       <div className="max-w-[1200px] mx-auto px-6">
-        {/* Back */}
         <Link
           href="/courses"
           className="inline-flex items-center gap-1.5 text-sm font-semibold text-neutral-500 hover:text-neutral-900 mb-6"
@@ -162,9 +226,7 @@ export default function CourseDetailPage({
         </Link>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-10">
-          {/* Left — content */}
           <div>
-            {/* Cover */}
             {course.cover_image && (
               <div className="rounded-2xl overflow-hidden mb-6 border border-neutral-200">
                 <img
@@ -182,7 +244,9 @@ export default function CourseDetailPage({
               {course.title}
             </h1>
             <div className="flex items-center gap-4 text-sm text-neutral-500 mb-5 flex-wrap">
-              <span>By {course.tutor_name}</span>
+              <Link href={`/tutors/${course.tutor}`} className="font-medium hover:text-violet-700">
+                By {course.tutor_name}
+              </Link>
               {avgRating > 0 && (
                 <span className="flex items-center gap-1 text-amber-500 font-bold">
                   <Star className="w-3.5 h-3.5 fill-amber-500" />
@@ -198,22 +262,19 @@ export default function CourseDetailPage({
               )}
             </div>
 
-            {/* Description */}
             <div className="prose prose-sm max-w-none text-neutral-600 mb-10 whitespace-pre-line">
               {course.description}
             </div>
 
-            {/* Modules */}
             <h2 className="text-lg font-extrabold mb-4">
               Course Content ({sortedModules.length} modules)
             </h2>
             <div className="flex flex-col gap-2 mb-10">
-              {sortedModules.map((m, i) => {
-                const Icon =
-                  contentIcon[m.content_type] || BookOpen;
+              {sortedModules.map((module, index) => {
+                const Icon = contentIcon[module.content_type] || BookOpen;
                 return (
                   <div
-                    key={m.id}
+                    key={module.id}
                     className="flex items-center gap-3 bg-white border-[1.5px] border-neutral-200 rounded-xl px-4 py-3"
                   >
                     <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center shrink-0">
@@ -221,53 +282,48 @@ export default function CourseDetailPage({
                     </div>
                     <div className="flex-1">
                       <div className="text-sm font-semibold">
-                        {i + 1}. {m.title}
+                        {index + 1}. {module.title}
                       </div>
-                      {m.duration_minutes && (
+                      {module.duration_minutes ? (
                         <div className="text-[.75rem] text-neutral-400">
-                          {m.duration_minutes} min
+                          {module.duration_minutes} min
                         </div>
-                      )}
+                      ) : null}
                     </div>
-                    {!enrollmentId && (
-                      <Lock className="w-3.5 h-3.5 text-neutral-300" />
-                    )}
+                    {!enrollmentId && <Lock className="w-3.5 h-3.5 text-neutral-300" />}
                   </div>
                 );
               })}
             </div>
 
-            {/* Reviews */}
             {course.reviews && course.reviews.length > 0 && (
               <>
                 <h2 className="text-lg font-extrabold mb-4">
                   Reviews ({course.reviews.length})
                 </h2>
                 <div className="flex flex-col gap-3">
-                  {course.reviews.map((r) => (
+                  {course.reviews.map((review) => (
                     <div
-                      key={r.id}
+                      key={review.id}
                       className="bg-white border-[1.5px] border-neutral-200 rounded-xl p-4"
                     >
                       <div className="flex items-center gap-2 mb-2">
                         <div className="w-7 h-7 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-[.65rem] font-bold">
-                          {r.student_name
+                          {review.student_name
                             .split(" ")
-                            .map((n) => n[0])
+                            .map((name) => name[0])
                             .join("")
                             .slice(0, 2)}
                         </div>
-                        <span className="text-sm font-semibold">
-                          {r.student_name}
-                        </span>
+                        <span className="text-sm font-semibold">{review.student_name}</span>
                         <span className="flex items-center gap-0.5 text-[.78rem] text-amber-500 font-bold ml-auto">
                           <Star className="w-3 h-3 fill-amber-500" />
-                          {r.rating}
+                          {review.rating}
                         </span>
                       </div>
-                      {r.comment && (
-                        <p className="text-sm text-neutral-600">{r.comment}</p>
-                      )}
+                      {review.comment ? (
+                        <p className="text-sm text-neutral-600">{review.comment}</p>
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -275,17 +331,16 @@ export default function CourseDetailPage({
             )}
           </div>
 
-          {/* Right — sidebar */}
           <div className="lg:sticky lg:top-[90px] self-start">
             <div className="bg-white border-[1.5px] border-neutral-200 rounded-2xl p-6">
               <div className="text-3xl font-extrabold mb-1">
-                {course.is_free ? (
-                  "Free"
-                ) : (
-                  <>P{course.price}</>
-                )}
+                {course.is_free ? "Free" : course.subscription_plan?.monthly_price ? `P${course.subscription_plan.monthly_price}` : "Subscription"}
               </div>
-              <p className="text-sm text-neutral-400 mb-5">One-time payment</p>
+              <p className="text-sm text-neutral-400 mb-5">
+                {course.is_free
+                  ? "Instant access"
+                  : "Monthly tutor subscription unlocks all paid content"}
+              </p>
 
               {enrollmentId ? (
                 <Button
@@ -303,9 +358,9 @@ export default function CourseDetailPage({
                   size="lg"
                   className="w-full"
                   loading={enrolling}
-                  onClick={handleEnroll}
+                  onClick={() => void handleEnroll()}
                 >
-                  {course.is_free ? "Enroll Free" : `Enroll — P${course.price}`}
+                  {course.is_free ? "Unlock Free Access" : "Subscribe to Unlock"}
                 </Button>
               )}
 
@@ -314,23 +369,114 @@ export default function CourseDetailPage({
                   <BookOpen className="w-4 h-4 text-neutral-400" />
                   {course.module_count} modules
                 </div>
-                {totalDuration > 0 && (
+                {totalDuration > 0 ? (
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-neutral-400" />
                     {totalDuration} minutes of content
                   </div>
-                )}
-                {avgRating > 0 && (
+                ) : null}
+                {avgRating > 0 ? (
                   <div className="flex items-center gap-2">
                     <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
                     {avgRating.toFixed(1)} average rating
                   </div>
-                )}
+                ) : null}
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {selectorOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setSelectorOpen(false)} />
+          <div className="relative z-10 w-full max-w-sm rounded-[20px] bg-white p-6 shadow-2xl">
+            <h3 className="font-extrabold text-neutral-900">Choose a child</h3>
+            <p className="mt-1 text-xs text-neutral-500">
+              This subscription unlocks {course.title} and the rest of {course.tutor_name}&apos;s paid library.
+            </p>
+            <div className="mt-4 space-y-2">
+              {children.map((child) => (
+                <button
+                  key={child.child_id}
+                  type="button"
+                  onClick={() => void handleChildSelect(child)}
+                  className="w-full rounded-xl border border-neutral-200 p-3 text-left transition-colors hover:border-violet-300 hover:bg-violet-50"
+                >
+                  <div className="text-sm font-semibold text-neutral-900">
+                    {child.first_name} {child.last_name}
+                  </div>
+                  <div className="mt-1 text-xs text-neutral-400">{child.email}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {!course.is_free ? (
+        <PaymentModal
+          open={subscribeOpen}
+          onClose={() => {
+            setSubscribeOpen(false);
+            if (user?.role !== "parent") setSelectedChild(null);
+          }}
+          onSuccess={async (result) => {
+            if (!tokens?.access) {
+              setSubscribeOpen(false);
+              return;
+            }
+
+            if (user?.role === "parent") {
+              const childIdToEnroll = result.subscription?.student ?? selectedChild?.child_id;
+              if (!childIdToEnroll) {
+                toast.error("Subscription worked, but no child was selected for enrollment.");
+                setSubscribeOpen(false);
+                return;
+              }
+              try {
+                await parentApi.enrollChildInCourse(tokens.access, childIdToEnroll, slug);
+                toast.success("Subscription activated and child enrolled successfully!");
+              } catch {
+                toast.error("Subscription worked, but course enrollment still needs to be completed.");
+              } finally {
+                setSubscribeOpen(false);
+              }
+              return;
+            }
+
+            try {
+              const enrollment = await apiFetch<Enrollment>("/students/enroll/", {
+                token: tokens.access,
+                method: "POST",
+                body: JSON.stringify({ course_slug: slug }),
+              });
+              setEnrollmentId(enrollment.id);
+              toast.success("Subscription activated and course unlocked!");
+            } catch (err) {
+              toast.error(
+                err instanceof ApiError
+                  ? String((err.body as Record<string, string>).detail ?? "Enrollment failed.")
+                  : "Enrollment failed."
+              );
+            } finally {
+              setSubscribeOpen(false);
+            }
+          }}
+          tutorId={course.tutor}
+          tutorName={course.tutor_name}
+          title={course.title}
+          plan={course.subscription_plan}
+          childId={selectedChild?.child_id}
+          childOptions={children}
+          beneficiaryLabel={
+            selectedChild
+              ? `${selectedChild.first_name} ${selectedChild.last_name}`
+              : undefined
+          }
+          returnTo={`/courses/${slug}`}
+        />
+      ) : null}
     </section>
   );
 }

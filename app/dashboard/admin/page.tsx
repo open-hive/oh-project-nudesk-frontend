@@ -107,7 +107,7 @@ export default function AdminOverviewPage() {
     <div>
       <div className="mb-6">
         <h2 className="text-[1.3rem] font-extrabold tracking-[-0.02em]">Platform Overview</h2>
-        <p className="text-[.875rem] text-neutral-500 mt-1">Real-time data</p>
+        <p className="text-[.875rem] text-neutral-500 mt-1">Real-time platform and subscription data</p>
       </div>
 
       {/* Stats */}

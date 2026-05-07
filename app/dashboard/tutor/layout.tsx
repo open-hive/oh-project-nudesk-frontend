@@ -4,6 +4,7 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import {
+  CreditCard,
   LayoutDashboard,
   Layers,
   Video,
@@ -26,6 +27,7 @@ const sections: SidebarSection[] = [
       { label: "Live Classes", href: "/dashboard/tutor/live", icon: Video, badge: "1" },
       { label: "Students", href: "/dashboard/tutor/students", icon: Users },
       { label: "Earnings", href: "/dashboard/tutor/earnings", icon: BarChart2 },
+      { label: "Payments", href: "/dashboard/tutor/payments", icon: CreditCard },
     ],
   },
   {
@@ -42,6 +44,7 @@ const titleMap: Record<string, string> = {
   "/dashboard/tutor/live": "Live Classes",
   "/dashboard/tutor/students": "Students",
   "/dashboard/tutor/earnings": "Earnings",
+  "/dashboard/tutor/payments": "Payments",
   "/dashboard/tutor/settings": "Settings",
 };
 

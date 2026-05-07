@@ -66,7 +66,11 @@ export function CoursesSection() {
                     variant={c.is_free ? "green" : "amber"}
                     className="absolute top-3 right-3"
                   >
-                    {c.is_free ? "Free" : `P${c.price}`}
+                    {c.is_free
+                      ? "Free"
+                      : c.subscription_plan?.monthly_price
+                      ? `From BWP ${Number(c.subscription_plan.monthly_price).toFixed(0)}/mo`
+                      : "Subscription"}
                   </Badge>
                 </div>
                 <div className="px-[18px] py-4 pb-5">

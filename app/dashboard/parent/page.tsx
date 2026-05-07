@@ -93,13 +93,21 @@ export default function ParentOverviewPage() {
   return (
     <div className="space-y-6">
       {/* Welcome */}
-      <div>
-        <h2 className="text-2xl font-bold text-neutral-900">
-          Welcome back, {firstName}
-        </h2>
-        <p className="text-sm text-neutral-500 mt-1">
-          Here&apos;s a snapshot of your children&apos;s learning progress.
-        </p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-2xl font-bold text-neutral-900">
+            Welcome back, {firstName}
+          </h2>
+          <p className="text-sm text-neutral-500 mt-1">
+            Here&apos;s a snapshot of your children&apos;s learning progress.
+          </p>
+        </div>
+        <Link
+          href="/dashboard/parent/tutors"
+          className="inline-flex items-center justify-center rounded-[10px] border-[1.5px] border-neutral-200 bg-white px-[22px] py-2.5 text-sm font-semibold text-neutral-700 shadow-sm transition-all hover:bg-neutral-50 hover:border-neutral-300"
+        >
+          Discover Tutors
+        </Link>
       </div>
 
       {/* Stat cards */}

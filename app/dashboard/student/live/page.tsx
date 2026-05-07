@@ -330,7 +330,7 @@ export default function StudentLivePage() {
                   <div className="text-[.8rem] text-neutral-500 mt-0.5">
                     {lc.tutor_name} · {lc.start_time?.slice(0, 5)}–
                     {lc.end_time?.slice(0, 5)} · Max {lc.max_capacity} students
-                    {!lc.is_free && ` · P${lc.price}`}
+                    {!lc.is_free && " · Subscription required"}
                   </div>
                 </div>
                 {lc.is_free ? (
@@ -347,7 +347,7 @@ export default function StudentLivePage() {
                     size="sm"
                     onClick={() => setPaymentTarget(lc)}
                   >
-                    {lc.status === "live" ? "Join" : "Enroll"} · P{lc.price}
+                    {lc.status === "live" ? "Join with Subscription" : "Subscribe to Join"}
                   </Button>
                 )}
               </div>
@@ -414,14 +414,29 @@ export default function StudentLivePage() {
           open={!!paymentTarget}
           onClose={() => setPaymentTarget(null)}
           onSuccess={() => {
-            setPaymentTarget(null);
-            toast.success("Registered! You can now join when the session goes live.");
-            fetchData();
+            if (!tokens || !paymentTarget) return;
+            apiFetch("/students/live-classes/register/", {
+              method: "POST",
+              token: tokens.access,
+              body: JSON.stringify({ live_class_id: paymentTarget.id }),
+            })
+              .then(() => {
+                setPaymentTarget(null);
+                toast.success("Subscription activated! You can now join when the session goes live.");
+                fetchData();
+              })
+              .catch((err) => {
+                toast.error(
+                  err instanceof ApiError
+                    ? String((err.body as Record<string, string>).detail ?? "Failed to register.")
+                    : "Failed to register."
+                );
+              });
           }}
-          contentType="live_class"
-          contentId={paymentTarget.id}
-          price={paymentTarget.price}
+          tutorId={paymentTarget.tutor}
+          tutorName={paymentTarget.tutor_name}
           title={paymentTarget.title}
+          plan={paymentTarget.subscription_plan}
         />
       )}
     </div>

@@ -27,7 +27,7 @@ const valueProps = [
   {
     Icon: PiggyBank,
     title: "Earn from your expertise",
-    desc: "Set your price, sell courses, and track earnings in one dashboard.",
+    desc: "Set weekly, monthly, and yearly subscription rates and track recurring earnings in one dashboard.",
     bg: "bg-green-50",
     color: "text-green-600",
   },
@@ -68,7 +68,7 @@ export function FeaturesSection() {
             The platform built for tutors
           </h2>
           <p className="text-[15px] text-neutral-500 leading-[1.6]">
-            Create content, host sessions, and earn from your knowledge on NuDesk.
+            Create content, host sessions, and grow subscriber income from your knowledge on NuDesk.
           </p>
         </div>
 

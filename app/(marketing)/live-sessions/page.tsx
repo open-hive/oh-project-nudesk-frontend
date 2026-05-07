@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Search, Video, Calendar, Clock, Users, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -60,15 +62,25 @@ const gradients = [
 ];
 
 export default function LiveSessionsPage() {
+  const searchParams = useSearchParams();
   const [sessions, setSessions] = useState<LiveClass[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("");
-  const [freeOnly, setFreeOnly] = useState(false);
-  const [statusFilter, setStatusFilter] = useState("");
+  const [search, setSearch] = useState(searchParams.get("search") ?? "");
+  const [category, setCategory] = useState(searchParams.get("category") ?? "");
+  const [freeOnly, setFreeOnly] = useState(searchParams.get("is_free") === "true");
+  const [statusFilter, setStatusFilter] = useState(searchParams.get("status") ?? "");
+  const [tutorFilter, setTutorFilter] = useState(searchParams.get("tutor") ?? "");
   const [next, setNext] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+
+  useEffect(() => {
+    setSearch(searchParams.get("search") ?? "");
+    setCategory(searchParams.get("category") ?? "");
+    setFreeOnly(searchParams.get("is_free") === "true");
+    setStatusFilter(searchParams.get("status") ?? "");
+    setTutorFilter(searchParams.get("tutor") ?? "");
+  }, [searchParams]);
 
   const buildUrl = useCallback(
     (base = "/courses/live-classes/") => {
@@ -77,10 +89,11 @@ export default function LiveSessionsPage() {
       if (category) params.set("category", category);
       if (freeOnly) params.set("is_free", "true");
       if (statusFilter) params.set("status", statusFilter);
+      if (tutorFilter) params.set("tutor", tutorFilter);
       const qs = params.toString();
       return qs ? `${base}?${qs}` : base;
     },
-    [search, category, freeOnly, statusFilter]
+    [search, category, freeOnly, statusFilter, tutorFilter]
   );
 
   const fetchSessions = useCallback(async () => {
@@ -124,7 +137,7 @@ export default function LiveSessionsPage() {
             Live Sessions
           </h1>
           <p className="text-base text-neutral-500 max-w-[520px] leading-relaxed mt-3.5">
-            Join live interactive classes with expert tutors. Ask questions, get instant feedback, and learn together.
+            Join live interactive classes with expert tutors and search directly by tutor name or topic.
           </p>
         </div>
 
@@ -134,7 +147,7 @@ export default function LiveSessionsPage() {
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
             <input
               className="w-full pl-10 pr-3.5 py-2.5 border-[1.5px] border-neutral-200 rounded-[10px] text-sm bg-white outline-none focus:border-violet-600 focus:ring-2 focus:ring-violet-600/10"
-              placeholder="Search sessions..."
+              placeholder="Search sessions or tutors..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -210,7 +223,11 @@ export default function LiveSessionsPage() {
                         <div className="flex items-start justify-between gap-2 mb-1">
                           <div className="text-[.975rem] font-bold leading-[1.4] flex-1">{s.title}</div>
                           <Badge variant={s.is_free ? "green" : "amber"} className="shrink-0">
-                            {s.is_free ? "Free" : `P${s.price}`}
+                            {s.is_free
+                              ? "Free"
+                              : s.subscription_plan?.monthly_price
+                              ? `From BWP ${Number(s.subscription_plan.monthly_price).toFixed(0)}/mo`
+                              : "Subscription"}
                           </Badge>
                         </div>
                         <div className="text-[.75rem] text-neutral-400 mb-3">{s.category_name}</div>
@@ -230,7 +247,9 @@ export default function LiveSessionsPage() {
                           </div>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-[.8rem] font-medium text-neutral-700">{s.tutor_name}</span>
+                          <Link href={`/tutors/${s.tutor}`} className="text-[.8rem] font-medium text-neutral-700 hover:text-violet-700">
+                            {s.tutor_name}
+                          </Link>
                           <Badge variant={STATUS_VARIANTS[s.status]}>{STATUS_LABELS[s.status]}</Badge>
                         </div>
                       </div>

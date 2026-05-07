@@ -52,6 +52,49 @@ export interface Profile {
   updated_at: string;
 }
 
+export interface SubscriptionPlan {
+  weekly_price: string;
+  monthly_price: string;
+  yearly_price: string;
+  updated_at: string;
+}
+
+export interface TutorPayoutSettings {
+  id?: number;
+  payout_method: "bank_transfer" | "mobile_money" | "paypal";
+  bank_name: string;
+  account_number?: string;
+  account_holder_name: string;
+  branch_code: string;
+  mobile_provider: string;
+  mobile_number?: string;
+  paypal_email: string;
+  is_configured: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface TutorDiscovery {
+  id: number;
+  username: string;
+  tutor_name: string;
+  first_name: string;
+  last_name: string;
+  bio: string;
+  avatar_url: string;
+  subject_area: string;
+  subscription_plan: SubscriptionPlan | null;
+  average_rating: number | null;
+  review_count: number;
+  published_courses_count: number;
+  published_guides_count: number;
+  upcoming_live_classes_count: number;
+  active_subscribers: number;
+  date_joined: string;
+  qualifications?: string;
+  statement?: string;
+}
+
 export interface ProfileSetupPayload {
   first_name: string;
   last_name: string;
@@ -71,6 +114,8 @@ export interface Course {
   cover_image: string | null;
   price: string;
   is_free: boolean;
+  requires_subscription: boolean;
+  subscription_plan: SubscriptionPlan | null;
   status: string;
   average_rating: number | null;
   review_count: number;
@@ -353,6 +398,8 @@ export interface StudyGuide {
   page_count: number;
   is_free: boolean;
   price: string;
+  requires_subscription: boolean;
+  subscription_plan: SubscriptionPlan | null;
   status: string;
   download_count: number;
   created_at: string;
@@ -432,6 +479,8 @@ export interface LiveClass {
   registered_count: number;
   is_free: boolean;
   price: string;
+  requires_subscription: boolean;
+  subscription_plan: SubscriptionPlan | null;
   status: "pending_review" | "rejected" | "scheduled" | "live" | "completed" | "cancelled";
   rejection_reason?: string;
   room_id: string;
@@ -499,6 +548,17 @@ export interface CourseProgress {
   is_complete: boolean;
 }
 
+export interface LearningActivityRecord {
+  id: number;
+  activity_type: string;
+  description: string;
+  course: number | null;
+  module: number | null;
+  live_class: number | null;
+  study_guide: number | null;
+  created_at: string;
+}
+
 export interface Certificate {
   id: number;
   student_id: number;
@@ -517,8 +577,11 @@ export interface Transaction {
   reference: string;
   student_email: string;
   tutor_email: string;
-  content_type: "course" | "study_guide" | "live_class";
+  content_type: "course" | "study_guide" | "live_class" | "subscription";
   content_title: string;
+  subscription_reference?: string | null;
+  subscription_billing_cycle?: "weekly" | "monthly" | "yearly" | null;
+  subscription_status?: "active" | "cancelled" | "expired" | null;
   amount: string;
   commission_rate: string;
   commission_amount: string;
@@ -532,6 +595,7 @@ export interface Transaction {
 
 export interface CheckoutResponse {
   detail: string;
+  subscription?: TutorSubscription;
   transaction: Transaction;
 }
 
@@ -552,6 +616,8 @@ export interface CourseRevenue {
 export interface TutorEarnings {
   total_earnings: string;
   monthly_earnings: string;
+  subscription_revenue: string;
+  subscription_transactions: number;
   monthly_chart: MonthlyRevenue[];
   per_course: CourseRevenue[];
 }
@@ -559,6 +625,7 @@ export interface TutorEarnings {
 export interface TutorDashboard {
   monthly_earnings: string;
   total_earnings: string;
+  active_subscriptions: number;
   active_students: number;
   total_students: number;
   published_courses: number;
@@ -664,13 +731,38 @@ export interface ChildCourseProgress {
 export interface ParentTransaction {
   id: number;
   reference: string;
-  content_type: "course" | "study_guide" | "live_class";
+  content_type: "course" | "study_guide" | "live_class" | "subscription";
   content_title: string;
   child_email: string;
   child_name: string;
   amount: string;
   status: "pending" | "completed" | "failed" | "refunded";
+  gateway?: string;
   created_at: string;
+}
+
+export interface TutorSubscription {
+  id: number;
+  reference: string;
+  student: number;
+  student_email: string;
+  student_name: string;
+  payer: number | null;
+  payer_email: string | null;
+  tutor: number;
+  tutor_email: string;
+  tutor_name: string;
+  billing_cycle: "weekly" | "monthly" | "yearly";
+  amount: string;
+  status: "active" | "cancelled" | "expired";
+  started_at: string;
+  current_period_start: string;
+  current_period_end: string;
+  cancelled_at: string | null;
+  is_currently_active: boolean;
+  plan: SubscriptionPlan | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ChildInviteInfo {
@@ -699,4 +791,27 @@ export interface AdminPlatformSettings {
   commission_percentage: string;
   platform_name: string;
   support_email: string;
+}
+
+export interface AdminTutorPaymentConfig {
+  id: number;
+  email: string;
+  is_approved: boolean;
+  date_joined: string;
+  tutor_name: string;
+  subscription_plan: SubscriptionPlan | null;
+  payout_settings: {
+    payout_method: "bank_transfer" | "mobile_money" | "paypal";
+    bank_name: string;
+    account_holder_name: string;
+    account_number_masked: string;
+    branch_code: string;
+    mobile_provider: string;
+    mobile_number_masked: string;
+    paypal_email: string;
+    is_configured: boolean;
+    updated_at: string;
+  } | null;
+  active_subscribers: number;
+  total_subscribers: number;
 }

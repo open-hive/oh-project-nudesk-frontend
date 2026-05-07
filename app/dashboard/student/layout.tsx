@@ -8,6 +8,7 @@ import {
   PlayCircle,
   Video,
   BookOpen,
+  Users,
   Award,
   BarChart2,
   Settings,
@@ -23,6 +24,7 @@ const sections: SidebarSection[] = [
     title: "Main",
     links: [
       { label: "Overview", href: "/dashboard/student", icon: LayoutDashboard },
+      { label: "Discover Tutors", href: "/dashboard/student/tutors", icon: Users },
       { label: "My Courses", href: "/dashboard/student/courses", icon: PlayCircle },
       { label: "Live Classes", href: "/dashboard/student/live", icon: Video, badge: "2" },
       { label: "Study Guides", href: "/dashboard/student/guides", icon: BookOpen },
@@ -40,6 +42,7 @@ const sections: SidebarSection[] = [
 
 const titleMap: Record<string, string> = {
   "/dashboard/student": "Overview",
+  "/dashboard/student/tutors": "Discover Tutors",
   "/dashboard/student/courses": "My Courses",
   "/dashboard/student/live": "Live Classes",
   "/dashboard/student/guides": "Study Guides",

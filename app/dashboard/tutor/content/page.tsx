@@ -209,7 +209,7 @@ export default function TutorContentPage() {
       .catch(() => {});
   }, [createOpen, guideCreateOpen, scheduleOpen]);
 
-  const stepLabels = ["Course Details", "Set Pricing", "Review & Submit"];
+  const stepLabels = ["Course Details", "Set Access", "Review & Submit"];
 
   function closeWizard() {
     setWizardStep(1);
@@ -227,9 +227,6 @@ export default function TutorContentPage() {
       if (!form.title.trim()) errors.title = "Title is required.";
       if (!form.description.trim()) errors.description = "Description is required.";
       if (!form.category) errors.category = "Category is required.";
-    } else if (step === 2) {
-      if (!form.is_free && (!form.price || Number(form.price) <= 0))
-        errors.price = "Price must be greater than 0.";
     }
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -253,7 +250,7 @@ export default function TutorContentPage() {
       fd.append("description", form.description.trim());
       fd.append("category", String(Number(form.category)));
       fd.append("is_free", String(form.is_free));
-      fd.append("price", form.is_free ? "0.00" : form.price);
+      fd.append("price", "0.00");
       if (coverImage) fd.append("cover_image", coverImage);
       await apiUpload<TutorCourse>("/courses/my-courses/", fd, { token: tokens.access });
       toast.success("Course created! Add modules to submit for review.");
@@ -308,8 +305,6 @@ export default function TutorContentPage() {
     if (!guideForm.description.trim()) errors.description = "Description is required.";
     if (!guideForm.category) errors.category = "Category is required.";
     if (!guideFile) errors.file = "Please upload a file for the study guide.";
-    if (!guideForm.is_free && (!guideForm.price || Number(guideForm.price) <= 0))
-      errors.price = "Price must be greater than 0 for paid guides.";
     setGuideFormErrors(errors);
     return Object.keys(errors).length === 0;
   }
@@ -324,7 +319,7 @@ export default function TutorContentPage() {
       fd.append("category", guideForm.category);
       fd.append("file", guideFile);
       fd.append("is_free", String(guideForm.is_free));
-      fd.append("price", guideForm.is_free ? "0.00" : guideForm.price);
+      fd.append("price", "0.00");
       if (guideForm.page_count) fd.append("page_count", guideForm.page_count);
 
       const guide = await apiUpload<TutorStudyGuide>("/courses/my-study-guides/", fd, {
@@ -749,7 +744,7 @@ export default function TutorContentPage() {
                   <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Course</th>
                   <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Category</th>
                   <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Modules</th>
-                  <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Price</th>
+                  <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Access</th>
                   <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Status</th>
                   <th className="px-4 py-3"></th>
                 </tr>
@@ -768,7 +763,7 @@ export default function TutorContentPage() {
                     </td>
                     <td className="px-4 py-3 text-[.82rem]">{c.module_count} modules</td>
                     <td className="px-4 py-3 text-[.82rem] font-semibold">
-                      {c.is_free ? "Free" : `P${c.price}`}
+                      {c.is_free ? "Free" : "Subscription"}
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant={statusBadge[c.status] ?? "neutral"}>
@@ -920,7 +915,7 @@ export default function TutorContentPage() {
                   <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Title</th>
                   <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Category</th>
                   <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Pages</th>
-                  <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Price</th>
+                  <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Access</th>
                   <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Status</th>
                   <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Downloads</th>
                   <th className="px-4 py-3"></th>
@@ -938,7 +933,7 @@ export default function TutorContentPage() {
                     </td>
                     <td className="px-4 py-3 text-[.82rem]">{g.page_count || "—"}</td>
                     <td className="px-4 py-3 text-[.82rem] font-semibold">
-                      {g.is_free ? "Free" : `P${g.price}`}
+                      {g.is_free ? "Free" : "Subscription"}
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant={statusBadge[g.status] ?? "neutral"}>
@@ -1064,7 +1059,7 @@ export default function TutorContentPage() {
                   <input
                     type="checkbox"
                     checked={guideForm.is_free}
-                    onChange={(e) => setGuideForm({ ...guideForm, is_free: e.target.checked, price: e.target.checked ? "" : guideForm.price })}
+                    onChange={(e) => setGuideForm({ ...guideForm, is_free: e.target.checked, price: "" })}
                     className="w-4 h-4 rounded border-neutral-300 text-violet-600 focus:ring-violet-500"
                   />
                   Free guide
@@ -1073,21 +1068,13 @@ export default function TutorContentPage() {
             </div>
 
             {!guideForm.is_free && (
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">Price (BWP)</label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-semibold text-neutral-400">P</span>
-                  <input
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    placeholder="9.99"
-                    value={guideForm.price}
-                    onChange={(e) => { setGuideForm({ ...guideForm, price: e.target.value }); setGuideFormErrors((p) => ({ ...p, price: "" })); }}
-                    className="w-full pl-8 pr-3.5 py-2.5 border-[1.5px] border-neutral-200 rounded-[10px] text-sm bg-white text-neutral-900 outline-none focus:border-violet-600 focus:ring-2 focus:ring-violet-600/10"
-                  />
-                </div>
-                {guideFormErrors.price && <p className="text-xs text-red-500 mt-1">{guideFormErrors.price}</p>}
+              <div className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3">
+                <p className="text-sm font-semibold text-neutral-800">
+                  Subscriber-only guide
+                </p>
+                <p className="text-xs text-neutral-500 mt-1">
+                  Learners unlock this guide through your tutor subscription plan. Update the actual rates from the Payments page.
+                </p>
               </div>
             )}
           </div>
@@ -1567,7 +1554,7 @@ export default function TutorContentPage() {
         <ModalBody>
           {/* Step indicator */}
           <div className="flex items-center justify-between mb-6 px-2">
-            {(["Details", "Pricing", "Publish"] as const).map((label, i) => {
+            {(["Details", "Access", "Publish"] as const).map((label, i) => {
               const num = i + 1;
               const done = wizardStep > num;
               const active = wizardStep === num;
@@ -1673,7 +1660,7 @@ export default function TutorContentPage() {
             </div>
           )}
 
-          {/* Step 2: Pricing */}
+          {/* Step 2: Access */}
           {wizardStep === 2 && (
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-3">
@@ -1681,40 +1668,21 @@ export default function TutorContentPage() {
                   <input
                     type="checkbox"
                     checked={form.is_free}
-                    onChange={(e) => setForm({ ...form, is_free: e.target.checked, price: e.target.checked ? "" : form.price })}
+                    onChange={(e) => setForm({ ...form, is_free: e.target.checked, price: "" })}
                     className="w-4 h-4 rounded border-neutral-300 text-violet-600 focus:ring-violet-500"
                   />
                   Free course
                 </label>
               </div>
               {!form.is_free && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-1">Price (BWP)</label>
-                    <div className="relative">
-                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-semibold text-neutral-400">P</span>
-                      <input
-                        type="number"
-                        min="0.01"
-                        step="0.01"
-                        placeholder="49.00"
-                        value={form.price}
-                        onChange={(e) => { setForm({ ...form, price: e.target.value }); setFormErrors((p) => ({ ...p, price: "" })); }}
-                        className="w-full pl-8 pr-3.5 py-2.5 border-[1.5px] border-neutral-200 rounded-[10px] text-sm bg-white text-neutral-900 outline-none focus:border-violet-600 focus:ring-2 focus:ring-violet-600/10"
-                      />
-                    </div>
-                    {formErrors.price && <p className="text-xs text-red-500 mt-1">{formErrors.price}</p>}
-                  </div>
-                  {form.price && Number(form.price) > 0 && (
-                    <div className="bg-violet-50 border border-violet-200 rounded-xl p-4">
-                      <p className="text-sm font-semibold text-neutral-700 mb-1">Your estimated share (90%)</p>
-                      <p className="text-2xl font-extrabold text-violet-600">
-                        P{(Number(form.price) * 0.9).toFixed(2)}{" "}
-                        <span className="text-sm font-medium text-neutral-500">per sale</span>
-                      </p>
-                    </div>
-                  )}
-                </>
+                <div className="bg-violet-50 border border-violet-200 rounded-xl p-4">
+                  <p className="text-sm font-semibold text-neutral-800 mb-1">
+                    Subscriber-only course
+                  </p>
+                  <p className="text-sm text-neutral-500">
+                    Learners will need an active tutor subscription to unlock this course and the rest of your paid library. Set the weekly, monthly, and yearly rates from Payments.
+                  </p>
+                </div>
               )}
             </div>
           )}
@@ -1735,7 +1703,7 @@ export default function TutorContentPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Check className="w-3.5 h-3.5 text-green-600" />
-                    <span className="text-sm">Pricing — {form.is_free ? "Free" : `P${form.price}`}</span>
+                    <span className="text-sm">Access — {form.is_free ? "Free" : "Subscription"}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {coverPreview ? (

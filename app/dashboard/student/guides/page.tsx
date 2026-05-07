@@ -176,7 +176,7 @@ export default function StudentGuidesPage() {
                         <BookOpen className="w-5 h-5 text-violet-600" />
                       </div>
                       <Badge variant={g.is_free ? "green" : "amber"}>
-                        {g.is_free ? "Free" : `P${g.price}`}
+                        {g.is_free ? "Free" : "Subscription"}
                       </Badge>
                     </div>
                     <div className="text-[.9rem] font-bold mb-1 line-clamp-2">{g.title}</div>
@@ -219,7 +219,7 @@ export default function StudentGuidesPage() {
                           onClick={() => handleBuyGuide(g)}
                         >
                           <ShoppingCart className="w-3.5 h-3.5 mr-1.5" />
-                          Buy — P{g.price}
+                          Subscribe to Unlock
                         </Button>
                       )}
                     </div>
@@ -281,18 +281,31 @@ export default function StudentGuidesPage() {
             setPaymentTarget(null);
             if (!tokens) return;
             const slug = paymentTarget.slug;
-            const data = await apiFetch<PaginatedResponse<StudyGuideAccess>>("/students/study-guides/", { token: tokens.access });
-            setAccessed(data.results);
-            const newAccess = data.results.find((a) => a.guide_slug === slug);
-            if (newAccess?.file) openFile(newAccess.file);
+            try {
+              await apiFetch<StudyGuideAccess>("/students/study-guides/access/", {
+                method: "POST",
+                token: tokens.access,
+                body: JSON.stringify({ study_guide_slug: slug }),
+              });
+              const data = await apiFetch<PaginatedResponse<StudyGuideAccess>>("/students/study-guides/", { token: tokens.access });
+              setAccessed(data.results);
+              const newAccess = data.results.find((a) => a.guide_slug === slug);
+              if (newAccess?.file) openFile(newAccess.file);
+              toast.success("Subscription activated and guide unlocked!");
+            } catch (e) {
+              toast.error(
+                e instanceof ApiError
+                  ? String((e.body as Record<string, string>).detail ?? "Failed to unlock guide.")
+                  : "Failed to unlock guide."
+              );
+            }
           }}
-          contentType="study_guide"
-          contentId={paymentTarget.id}
-          price={paymentTarget.price}
+          tutorId={paymentTarget.tutor}
+          tutorName={paymentTarget.tutor_name}
           title={paymentTarget.title}
+          plan={paymentTarget.subscription_plan}
         />
       )}
     </div>
   );
 }
-

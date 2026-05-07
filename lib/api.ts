@@ -139,16 +139,25 @@ export async function apiUpload<T>(
 // ── Parent API ────────────────────────────────────────────────────────────────
 
 import type {
+  AdminTutorPaymentConfig,
   ParentDashboard,
   ParentChildLink,
   ChildSummary,
   ChildDetail,
   ChildCourseProgress,
+  Certificate,
+  LearningActivityRecord,
+  LiveClassRegistration,
   ParentTransaction,
   PaginatedResponse,
   CheckoutResponse,
   ChildInviteInfo,
   InviteAcceptResult,
+  StudyGuideAccess,
+  SubscriptionPlan,
+  TutorDiscovery,
+  TutorSubscription,
+  TutorPayoutSettings,
 } from "@/lib/types";
 
 export const parentApi = {
@@ -170,6 +179,13 @@ export const parentApi = {
       { token }
     ),
 
+  enrollChildInCourse: (token: string, childId: number, courseSlug: string) =>
+    apiFetch<ChildCourseProgress>(`/parents/children/${childId}/courses/enroll/`, {
+      token,
+      method: "POST",
+      body: JSON.stringify({ course_slug: courseSlug }),
+    }),
+
   getChildCourseDetail: (token: string, childId: number, enrollmentId: number) =>
     apiFetch<ChildCourseProgress>(
       `/parents/children/${childId}/courses/${enrollmentId}/`,
@@ -177,25 +193,25 @@ export const parentApi = {
     ),
 
   getChildLiveClasses: (token: string, childId: number) =>
-    apiFetch<PaginatedResponse<unknown>>(
+    apiFetch<PaginatedResponse<LiveClassRegistration>>(
       `/parents/children/${childId}/live-classes/`,
       { token }
     ),
 
   getChildStudyGuides: (token: string, childId: number) =>
-    apiFetch<PaginatedResponse<unknown>>(
+    apiFetch<PaginatedResponse<StudyGuideAccess>>(
       `/parents/children/${childId}/study-guides/`,
       { token }
     ),
 
   getChildCertificates: (token: string, childId: number) =>
-    apiFetch<PaginatedResponse<unknown>>(
+    apiFetch<PaginatedResponse<Certificate>>(
       `/parents/children/${childId}/certificates/`,
       { token }
     ),
 
   getChildActivity: (token: string, childId: number) =>
-    apiFetch<PaginatedResponse<unknown>>(
+    apiFetch<PaginatedResponse<LearningActivityRecord>>(
       `/parents/children/${childId}/activity/`,
       { token }
     ),
@@ -248,8 +264,8 @@ export const parentApi = {
   checkout: (
     token: string,
     payload: {
-      content_type: "course" | "study_guide" | "live_class";
-      content_id: number;
+      tutor_id: number;
+      billing_cycle: "weekly" | "monthly" | "yearly";
       child_id: number;
     }
   ) =>
@@ -258,6 +274,109 @@ export const parentApi = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+};
+
+export const paymentApi = {
+  getTutorPlan: (tutorId: number) =>
+    apiFetch<SubscriptionPlan>(`/payments/tutors/${tutorId}/subscription-plan/`),
+
+  checkout: (
+    token: string,
+    payload: {
+      tutor_id: number;
+      billing_cycle: "weekly" | "monthly" | "yearly";
+      child_id?: number;
+    }
+  ) =>
+    apiFetch<CheckoutResponse>("/payments/checkout/", {
+      token,
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  getMySubscriptions: (token: string) =>
+    apiFetch<PaginatedResponse<TutorSubscription> | TutorSubscription[]>(
+      "/payments/subscriptions/",
+      { token }
+    ),
+
+  cancelSubscription: (token: string, reference: string) =>
+    apiFetch<{ detail: string; subscription: TutorSubscription }>(
+      `/payments/subscriptions/${reference}/cancel/`,
+      { token, method: "POST" }
+    ),
+};
+
+export const tutorApi = {
+  getDiscoveryList: (params?: {
+    search?: string;
+    subject_area?: string;
+    has_pricing?: "true" | "false";
+  }) => {
+    const query = new URLSearchParams();
+    if (params?.search) query.set("search", params.search);
+    if (params?.subject_area) query.set("subject_area", params.subject_area);
+    if (params?.has_pricing) query.set("has_pricing", params.has_pricing);
+    const qs = query.toString();
+    return apiFetch<PaginatedResponse<TutorDiscovery>>(
+      `/tutors/discovery/${qs ? `?${qs}` : ""}`
+    );
+  },
+
+  getDiscoveryDetail: (tutorId: number) =>
+    apiFetch<TutorDiscovery>(`/tutors/discovery/${tutorId}/`),
+
+  getSubscriptionPlan: (token: string) =>
+    apiFetch<SubscriptionPlan>("/tutors/subscription-plan/", { token }),
+
+  updateSubscriptionPlan: (
+    token: string,
+    payload: Partial<SubscriptionPlan>
+  ) =>
+    apiFetch<SubscriptionPlan>("/tutors/subscription-plan/", {
+      token,
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+
+  getSubscribers: (token: string) =>
+    apiFetch<PaginatedResponse<TutorSubscription> | TutorSubscription[]>(
+      "/tutors/subscriptions/",
+      { token }
+    ),
+
+  getPayoutSettings: (token: string) =>
+    apiFetch<TutorPayoutSettings>("/tutors/payout-settings/", { token }),
+
+  updatePayoutSettings: (token: string, payload: Partial<TutorPayoutSettings>) =>
+    apiFetch<TutorPayoutSettings>("/tutors/payout-settings/", {
+      token,
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+};
+
+export const adminApi = {
+  getTutorPaymentConfigs: (
+    token: string,
+    params?: {
+      search?: string;
+      configured?: "true" | "false";
+      approved?: "true" | "false";
+      payout_method?: "bank_transfer" | "mobile_money" | "paypal";
+    }
+  ) => {
+    const query = new URLSearchParams();
+    if (params?.search) query.set("search", params.search);
+    if (params?.configured) query.set("configured", params.configured);
+    if (params?.approved) query.set("approved", params.approved);
+    if (params?.payout_method) query.set("payout_method", params.payout_method);
+    const qs = query.toString();
+    return apiFetch<PaginatedResponse<AdminTutorPaymentConfig>>(
+      `/admins/payments/configs/${qs ? `?${qs}` : ""}`,
+      { token }
+    );
+  },
 };
 
 // ── Child invite API (public — no auth token required) ────────────────────────

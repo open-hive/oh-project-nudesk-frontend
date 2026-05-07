@@ -118,15 +118,20 @@ export default function StudentOverviewPage() {
   return (
     <div>
       {/* Greeting */}
-      <div className="mb-6">
-        <h2 className="text-[1.3rem] font-extrabold tracking-[-0.02em]">
-          Welcome back, {firstName}
-        </h2>
-        {dash.learning_streak_days > 0 && (
-          <p className="text-sm text-neutral-500 mt-1">
-            You&apos;re on a {dash.learning_streak_days}-day learning streak. Keep it up!
-          </p>
-        )}
+      <div className="mb-6 flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-[1.3rem] font-extrabold tracking-[-0.02em]">
+            Welcome back, {firstName}
+          </h2>
+          {dash.learning_streak_days > 0 && (
+            <p className="text-sm text-neutral-500 mt-1">
+              You&apos;re on a {dash.learning_streak_days}-day learning streak. Keep it up!
+            </p>
+          )}
+        </div>
+        <Button variant="secondary" size="sm" href="/dashboard/student/tutors">
+          Discover Tutors
+        </Button>
       </div>
 
       {/* Stats grid */}
