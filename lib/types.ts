@@ -8,6 +8,8 @@ export interface User {
   is_approved: boolean;
   is_email_verified: boolean;
   is_profile_complete: boolean;
+  is_parent_managed_child: boolean;
+  can_self_subscribe: boolean;
   date_joined: string;
 }
 
@@ -23,6 +25,8 @@ export interface LoginUser {
   role: UserRole;
   is_approved: boolean;
   is_profile_complete: boolean;
+  is_parent_managed_child: boolean;
+  can_self_subscribe: boolean;
 }
 
 export interface LoginResponse extends AuthTokens {
@@ -48,6 +52,8 @@ export interface Profile {
   phone: string;
   avatar_url: string;
   is_complete: boolean;
+  is_parent_managed_child: boolean;
+  can_self_subscribe: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -506,6 +512,17 @@ export interface LiveClassRegistration {
   price: string;
   registered_at: string;
   attended: boolean;
+  completed_session: boolean;
+}
+
+export interface TutorLiveClassAttendance {
+  id: number;
+  student_id: number;
+  student_name: string;
+  student_email: string;
+  registered_at: string;
+  attended: boolean;
+  completed_session: boolean;
 }
 
 export interface TurnCredentials {
@@ -634,6 +651,7 @@ export interface TutorDashboard {
   total_reviews: number;
   published_guides: number;
   upcoming_live_classes: number;
+  payments_ready: boolean;
 }
 
 // ── Admin Revenue Types ──
@@ -680,6 +698,13 @@ export interface ParentDashboard {
   total_enrolled: number;
   total_certs: number;
   total_spent: string;
+}
+
+export interface ParentPreference {
+  auto_assign_single_child: boolean;
+  allow_child_self_subscription: boolean;
+  default_learning_assignee: "child" | "self";
+  updated_at: string;
 }
 
 export interface ChildSummary {
@@ -739,6 +764,26 @@ export interface ParentTransaction {
   status: "pending" | "completed" | "failed" | "refunded";
   gateway?: string;
   created_at: string;
+}
+
+export interface ParentLearningPathItem {
+  id: number;
+  assignee_type: "child" | "self";
+  child: number | null;
+  child_name: string;
+  content_type: "course" | "study_guide" | "live_class" | null;
+  content_id: number | null;
+  content_title: string;
+  course: number | null;
+  study_guide: number | null;
+  live_class: number | null;
+  tutor_id: number | null;
+  tutor_name: string;
+  scheduled_for: string;
+  notes: string;
+  is_completed: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface TutorSubscription {

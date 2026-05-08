@@ -31,10 +31,7 @@ function AcceptInviteContent() {
 
   // Validate the token on mount
   useEffect(() => {
-    if (!token) {
-      setPageState("error");
-      return;
-    }
+    if (!token) return;
     let cancelled = false;
     async function validate() {
       try {
@@ -77,6 +74,8 @@ function AcceptInviteContent() {
         username: result.user.username,
         is_approved: result.user.is_approved,
         is_profile_complete: result.user.is_profile_complete,
+        is_parent_managed_child: true,
+        can_self_subscribe: false,
       };
       setAuth(loginUser, { access: result.access, refresh: result.refresh });
       setPageState("done");

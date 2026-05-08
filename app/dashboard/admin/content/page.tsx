@@ -1,14 +1,15 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Modal, ModalHead, ModalBody, ModalFoot } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
-import { BookOpen, Calendar, Clock, FileText, Users, Video } from "lucide-react";
+import { BookOpen, Calendar, Clock, FileText, Search, Users, Video } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { apiFetch, ApiError } from "@/lib/api";
-import type { PendingCourse, PendingStudyGuide, PendingLiveClass, PaginatedResponse, CourseModule } from "@/lib/types";
+import type { PendingCourse, PendingStudyGuide, PendingLiveClass, PaginatedResponse, CourseModule, Category } from "@/lib/types";
 
 type Tab = "courses" | "guides" | "live";
 
@@ -34,8 +35,19 @@ export default function AdminContentPage() {
   const [courses, setCourses] = useState<PendingCourse[]>([]);
   const [guides, setGuides] = useState<PendingStudyGuide[]>([]);
   const [liveSessions, setLiveSessions] = useState<PendingLiveClass[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [accessFilter, setAccessFilter] = useState<"" | "free" | "subscription">("");
+  const [courseCount, setCourseCount] = useState(0);
+  const [guideCount, setGuideCount] = useState(0);
+  const [liveCount, setLiveCount] = useState(0);
+  const [courseNext, setCourseNext] = useState<string | null>(null);
+  const [guideNext, setGuideNext] = useState<string | null>(null);
+  const [liveNext, setLiveNext] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   // Preview modal
   const [previewCourse, setPreviewCourse] = useState<PendingCourse | null>(null);
@@ -46,29 +58,130 @@ export default function AdminContentPage() {
   const [rejectReason, setRejectReason] = useState("");
   const [rejectError, setRejectError] = useState("");
 
-  const fetchContent = useCallback(async () => {
+  function buildEndpoint(base: string) {
+    const params = new URLSearchParams();
+    if (search.trim()) params.set("search", search.trim());
+    if (categoryFilter) params.set("category", categoryFilter);
+    if (accessFilter) params.set("access", accessFilter);
+    return `${base}${params.toString() ? `?${params.toString()}` : ""}`;
+  }
+
+  function getEndpointFromNext(nextUrl: string) {
+    const url = new URL(nextUrl);
+    return (url.pathname + url.search).replace(/^\/apis/, "");
+  }
+
+  const fetchCourses = useCallback(async () => {
     if (!tokens) return;
     setLoading(true);
     try {
-      const [c, g, l] = await Promise.all([
-        apiFetch<PaginatedResponse<PendingCourse>>("/admins/content/courses/", { token: tokens.access }),
-        apiFetch<PaginatedResponse<PendingStudyGuide>>("/admins/content/study-guides/", { token: tokens.access }),
-        apiFetch<PaginatedResponse<PendingLiveClass>>("/admins/content/live-classes/", { token: tokens.access }),
-      ]);
-      setCourses(c.results);
-      setGuides(g.results);
-      setLiveSessions(l.results);
+      const data = await apiFetch<PaginatedResponse<PendingCourse>>(
+        buildEndpoint("/admins/content/courses/"),
+        { token: tokens.access }
+      );
+      setCourses(data.results);
+      setCourseCount(data.count);
+      setCourseNext(data.next);
     } catch {
-      toast.error("Failed to load pending content.");
+      toast.error("Failed to load pending courses.");
+      setCourses([]);
+      setCourseCount(0);
+      setCourseNext(null);
     } finally {
       setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tokens]);
+  }, [tokens, search, categoryFilter, accessFilter]);
+
+  const fetchGuides = useCallback(async () => {
+    if (!tokens) return;
+    setLoading(true);
+    try {
+      const data = await apiFetch<PaginatedResponse<PendingStudyGuide>>(
+        buildEndpoint("/admins/content/study-guides/"),
+        { token: tokens.access }
+      );
+      setGuides(data.results);
+      setGuideCount(data.count);
+      setGuideNext(data.next);
+    } catch {
+      toast.error("Failed to load pending study guides.");
+      setGuides([]);
+      setGuideCount(0);
+      setGuideNext(null);
+    } finally {
+      setLoading(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tokens, search, categoryFilter, accessFilter]);
+
+  const fetchLiveSessions = useCallback(async () => {
+    if (!tokens) return;
+    setLoading(true);
+    try {
+      const data = await apiFetch<PaginatedResponse<PendingLiveClass>>(
+        buildEndpoint("/admins/content/live-classes/"),
+        { token: tokens.access }
+      );
+      setLiveSessions(data.results);
+      setLiveCount(data.count);
+      setLiveNext(data.next);
+    } catch {
+      toast.error("Failed to load pending live sessions.");
+      setLiveSessions([]);
+      setLiveCount(0);
+      setLiveNext(null);
+    } finally {
+      setLoading(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tokens, search, categoryFilter, accessFilter]);
 
   useEffect(() => {
-    fetchContent();
-  }, [fetchContent]);
+    apiFetch<PaginatedResponse<Category>>("/courses/categories/")
+      .then((data) => setCategories(data.results))
+      .catch(() => setCategories([]));
+  }, []);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      if (tab === "courses") {
+        void fetchCourses();
+      } else if (tab === "guides") {
+        void fetchGuides();
+      } else {
+        void fetchLiveSessions();
+      }
+    }, 250);
+    return () => window.clearTimeout(id);
+  }, [tab, fetchCourses, fetchGuides, fetchLiveSessions]);
+
+  async function loadMoreCurrentTab() {
+    if (!tokens) return;
+    const next = tab === "courses" ? courseNext : tab === "guides" ? guideNext : liveNext;
+    if (!next) return;
+
+    setLoadingMore(true);
+    try {
+      if (tab === "courses") {
+        const data = await apiFetch<PaginatedResponse<PendingCourse>>(getEndpointFromNext(next), { token: tokens.access });
+        setCourses((prev) => [...prev, ...data.results]);
+        setCourseNext(data.next);
+      } else if (tab === "guides") {
+        const data = await apiFetch<PaginatedResponse<PendingStudyGuide>>(getEndpointFromNext(next), { token: tokens.access });
+        setGuides((prev) => [...prev, ...data.results]);
+        setGuideNext(data.next);
+      } else {
+        const data = await apiFetch<PaginatedResponse<PendingLiveClass>>(getEndpointFromNext(next), { token: tokens.access });
+        setLiveSessions((prev) => [...prev, ...data.results]);
+        setLiveNext(data.next);
+      }
+    } catch {
+      toast.error("Failed to load more content.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   async function handleApprove(id: string, type: Tab) {
     if (!tokens) return;
@@ -87,9 +200,16 @@ export default function AdminContentPage() {
       });
       const label = type === "courses" ? "Course" : type === "guides" ? "Study guide" : "Live session";
       toast.success(`${label} approved!`);
-      if (type === "courses") setCourses((prev) => prev.filter((c) => c.slug !== id));
-      else if (type === "guides") setGuides((prev) => prev.filter((g) => g.slug !== id));
-      else setLiveSessions((prev) => prev.filter((l) => String(l.id) !== id));
+      if (type === "courses") {
+        setCourses((prev) => prev.filter((c) => c.slug !== id));
+        setCourseCount((prev) => Math.max(0, prev - 1));
+      } else if (type === "guides") {
+        setGuides((prev) => prev.filter((g) => g.slug !== id));
+        setGuideCount((prev) => Math.max(0, prev - 1));
+      } else {
+        setLiveSessions((prev) => prev.filter((l) => String(l.id) !== id));
+        setLiveCount((prev) => Math.max(0, prev - 1));
+      }
     } catch (e) {
       toast.error(
         e instanceof ApiError ? String((e.body as Record<string, string>).detail ?? "Failed") : "Action failed."
@@ -120,9 +240,16 @@ export default function AdminContentPage() {
       });
       const label = rejectTarget.type === "courses" ? "Course" : rejectTarget.type === "guides" ? "Study guide" : "Live session";
       toast.success(`${label} rejected.`);
-      if (rejectTarget.type === "courses") setCourses((prev) => prev.filter((c) => c.slug !== rejectTarget.id));
-      else if (rejectTarget.type === "guides") setGuides((prev) => prev.filter((g) => g.slug !== rejectTarget.id));
-      else setLiveSessions((prev) => prev.filter((l) => String(l.id) !== rejectTarget.id));
+      if (rejectTarget.type === "courses") {
+        setCourses((prev) => prev.filter((c) => c.slug !== rejectTarget.id));
+        setCourseCount((prev) => Math.max(0, prev - 1));
+      } else if (rejectTarget.type === "guides") {
+        setGuides((prev) => prev.filter((g) => g.slug !== rejectTarget.id));
+        setGuideCount((prev) => Math.max(0, prev - 1));
+      } else {
+        setLiveSessions((prev) => prev.filter((l) => String(l.id) !== rejectTarget.id));
+        setLiveCount((prev) => Math.max(0, prev - 1));
+      }
       setRejectTarget(null);
       setRejectReason("");
       setRejectError("");
@@ -151,7 +278,7 @@ export default function AdminContentPage() {
               : "border-transparent text-neutral-500 hover:text-neutral-700"
           }`}
         >
-          Courses {courses.length > 0 && <span className="ml-1 text-[.72rem] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full font-bold">{courses.length}</span>}
+          Courses {courseCount > 0 && <span className="ml-1 text-[.72rem] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full font-bold">{courseCount}</span>}
         </button>
         <button
           onClick={() => setTab("guides")}
@@ -161,7 +288,7 @@ export default function AdminContentPage() {
               : "border-transparent text-neutral-500 hover:text-neutral-700"
           }`}
         >
-          Study Guides {guides.length > 0 && <span className="ml-1 text-[.72rem] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full font-bold">{guides.length}</span>}
+          Study Guides {guideCount > 0 && <span className="ml-1 text-[.72rem] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full font-bold">{guideCount}</span>}
         </button>
         <button
           onClick={() => setTab("live")}
@@ -171,8 +298,47 @@ export default function AdminContentPage() {
               : "border-transparent text-neutral-500 hover:text-neutral-700"
           }`}
         >
-          Live Sessions {liveSessions.length > 0 && <span className="ml-1 text-[.72rem] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full font-bold">{liveSessions.length}</span>}
+          Live Sessions {liveCount > 0 && <span className="ml-1 text-[.72rem] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full font-bold">{liveCount}</span>}
         </button>
+      </div>
+
+      <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-neutral-200 bg-white px-4 py-3">
+        <div className="relative min-w-[220px] flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={
+              tab === "courses"
+                ? "Search pending courses, tutors, or categories..."
+                : tab === "guides"
+                ? "Search pending guides, tutors, or categories..."
+                : "Search pending live sessions, tutors, or categories..."
+            }
+            className="pl-9"
+          />
+        </div>
+        <select
+          className="h-[38px] rounded-xl border-[1.5px] border-neutral-200 bg-white px-3 text-[.82rem] focus:border-violet-600 focus:outline-none"
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+        >
+          <option value="">All categories</option>
+          {categories.map((category) => (
+            <option key={category.id} value={category.slug}>
+              {category.name}
+            </option>
+          ))}
+        </select>
+        <select
+          className="h-[38px] rounded-xl border-[1.5px] border-neutral-200 bg-white px-3 text-[.82rem] focus:border-violet-600 focus:outline-none"
+          value={accessFilter}
+          onChange={(e) => setAccessFilter(e.target.value as "" | "free" | "subscription")}
+        >
+          <option value="">All access</option>
+          <option value="free">Free</option>
+          <option value="subscription">Subscription</option>
+        </select>
       </div>
 
       {loading ? (
@@ -190,6 +356,7 @@ export default function AdminContentPage() {
                 <p className="text-sm text-neutral-400">No pending courses.</p>
               </div>
             ) : (
+              <div className="space-y-4">
               <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden">
                 <table className="w-full text-left">
                   <thead>
@@ -256,6 +423,14 @@ export default function AdminContentPage() {
                   </tbody>
                 </table>
               </div>
+              {courseNext ? (
+                <div className="flex justify-center">
+                  <Button variant="secondary" size="sm" loading={loadingMore} onClick={loadMoreCurrentTab}>
+                    Load more courses
+                  </Button>
+                </div>
+              ) : null}
+              </div>
             )
           )}
 
@@ -266,6 +441,7 @@ export default function AdminContentPage() {
                 <p className="text-sm text-neutral-400">No pending study guides.</p>
               </div>
             ) : ( 
+              <div className="space-y-4">
               <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden">
                 <table className="w-full text-left">
                   <thead>
@@ -334,6 +510,14 @@ export default function AdminContentPage() {
                   </tbody>
                 </table>
               </div>
+              {guideNext ? (
+                <div className="flex justify-center">
+                  <Button variant="secondary" size="sm" loading={loadingMore} onClick={loadMoreCurrentTab}>
+                    Load more study guides
+                  </Button>
+                </div>
+              ) : null}
+              </div>
             )
           )}
 
@@ -344,6 +528,7 @@ export default function AdminContentPage() {
                 <p className="text-sm text-neutral-400">No pending live sessions.</p>
               </div>
             ) : (
+              <div className="space-y-4">
               <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden">
                 <table className="w-full text-left">
                   <thead>
@@ -420,6 +605,14 @@ export default function AdminContentPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+              {liveNext ? (
+                <div className="flex justify-center">
+                  <Button variant="secondary" size="sm" loading={loadingMore} onClick={loadMoreCurrentTab}>
+                    Load more live sessions
+                  </Button>
+                </div>
+              ) : null}
               </div>
             )
           )}

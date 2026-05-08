@@ -26,6 +26,8 @@ function toMoney(value: number) {
   return value.toFixed(2);
 }
 
+const MOBILE_MONEY_PROVIDERS = ["Mascom", "Orange", "BTC"] as const;
+
 export default function TutorPaymentsPage() {
   const { tokens } = useAuth();
   const toast = useToast();
@@ -41,6 +43,8 @@ export default function TutorPaymentsPage() {
   const [weeklyPrice, setWeeklyPrice] = useState("0.00");
   const [monthlyPrice, setMonthlyPrice] = useState("0.00");
   const [yearlyPrice, setYearlyPrice] = useState("0.00");
+  const [autoFillRates, setAutoFillRates] = useState(true);
+  const [lastEditedRate, setLastEditedRate] = useState<"weekly" | "monthly" | "yearly">("monthly");
 
   const [payoutMethod, setPayoutMethod] = useState<TutorPayoutSettings["payout_method"]>("bank_transfer");
   const [bankName, setBankName] = useState("");
@@ -80,6 +84,38 @@ export default function TutorPaymentsPage() {
     setMonthlyPrice(toMoney(monthly));
   }
 
+  function setRateValue(source: "weekly" | "monthly" | "yearly", rawValue: string) {
+    if (source === "weekly") setWeeklyPrice(rawValue);
+    if (source === "monthly") setMonthlyPrice(rawValue);
+    if (source === "yearly") setYearlyPrice(rawValue);
+  }
+
+  function handleRateChange(source: "weekly" | "monthly" | "yearly", rawValue: string) {
+    setLastEditedRate(source);
+    if (autoFillRates) {
+      applyDerivedRates(source, rawValue);
+      return;
+    }
+    setRateValue(source, rawValue);
+  }
+
+  function handleAutoFillToggle() {
+    const next = !autoFillRates;
+    setAutoFillRates(next);
+
+    if (!next) return;
+
+    const sourceValue =
+      lastEditedRate === "weekly"
+        ? weeklyPrice
+        : lastEditedRate === "yearly"
+        ? yearlyPrice
+        : monthlyPrice;
+
+    if (sourceValue === "") return;
+    applyDerivedRates(lastEditedRate, sourceValue);
+  }
+
   const load = useCallback(async () => {
     if (!tokens) return;
     setLoading(true);
@@ -113,7 +149,10 @@ export default function TutorPaymentsPage() {
   }, [tokens, toast]);
 
   useEffect(() => {
-    void load();
+    const timer = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [load]);
 
   async function handleSavePlan(e: React.FormEvent) {
@@ -249,7 +288,7 @@ export default function TutorPaymentsPage() {
                   min="0"
                   step="0.01"
                   value={weeklyPrice}
-                  onChange={(e) => applyDerivedRates("weekly", e.target.value)}
+                  onChange={(e) => handleRateChange("weekly", e.target.value)}
                 />
               </div>
               <div>
@@ -260,7 +299,7 @@ export default function TutorPaymentsPage() {
                   min="0"
                   step="0.01"
                   value={monthlyPrice}
-                  onChange={(e) => applyDerivedRates("monthly", e.target.value)}
+                  onChange={(e) => handleRateChange("monthly", e.target.value)}
                 />
               </div>
               <div>
@@ -271,18 +310,48 @@ export default function TutorPaymentsPage() {
                   min="0"
                   step="0.01"
                   value={yearlyPrice}
-                  onChange={(e) => applyDerivedRates("yearly", e.target.value)}
+                  onChange={(e) => handleRateChange("yearly", e.target.value)}
                 />
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <div className="text-sm font-bold text-neutral-900">
+                    Auto-calculate rates
+                  </div>
+                  <p className="mt-1 text-sm text-neutral-600">
+                    Rates auto-calculate from the last field you edit, and you
+                    can still override any amount before saving by toggling the
+                    Auto-Calculate button.
+                  </p>
+                </div>
+                <div className="inline-flex items-center gap-3 rounded-full border border-violet-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-800">
+                  <span>Auto-calculate</span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={autoFillRates}
+                    aria-label="Toggle rate auto-calculation"
+                    onClick={handleAutoFillToggle}
+                    className={`relative h-6 w-11 rounded-full transition-colors ${
+                      autoFillRates ? "bg-violet-600" : "bg-neutral-300"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
+                        autoFillRates ? "translate-x-5" : "translate-x-0.5"
+                      }`}
+                    />
+                  </button>
+                </div>
               </div>
             </div>
 
             <div className="mt-4 rounded-xl border border-violet-200 bg-violet-50 p-4 text-sm text-neutral-600">
               Set individual content items as `free` or `subscriber-only` when creating them. The actual paid amount is managed only here.
             </div>
-
-            <p className="mt-3 text-[.78rem] text-neutral-500">
-              Rates auto-calculate from the last field you edit, and you can still override any amount before saving.
-            </p>
 
             <div className="mt-4">
               <Button type="submit" variant="primary" loading={savingPlan}>
@@ -336,7 +405,18 @@ export default function TutorPaymentsPage() {
                 <>
                   <div>
                     <label className={labelCls}>Provider</label>
-                    <input className={inputCls} value={mobileProvider} onChange={(e) => setMobileProvider(e.target.value)} />
+                    <select
+                      className={inputCls}
+                      value={mobileProvider}
+                      onChange={(e) => setMobileProvider(e.target.value)}
+                    >
+                      <option value="">Select a provider</option>
+                      {MOBILE_MONEY_PROVIDERS.map((provider) => (
+                        <option key={provider} value={provider}>
+                          {provider}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className={labelCls}>Mobile Number</label>

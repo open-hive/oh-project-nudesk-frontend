@@ -1,12 +1,26 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Loader2, UserPlus, Users, Check, X, Send } from "lucide-react";
+import { Loader2, UserPlus, Users, Check, X, Send, CreditCard } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
-import { apiFetch, ApiError, childLinkApi } from "@/lib/api";
-import type { Profile, ParentChildLink } from "@/lib/types";
+import { apiFetch, ApiError, childLinkApi, paymentApi } from "@/lib/api";
+import type { Profile, ParentChildLink, TutorSubscription } from "@/lib/types";
+
+function normalizeSubscriptions(
+  data: TutorSubscription[] | { results?: TutorSubscription[] }
+) {
+  return Array.isArray(data) ? data : data.results ?? [];
+}
+
+function formatMoney(value: string) {
+  return `BWP ${Number(value || 0).toLocaleString("en-BW", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
 
 export default function StudentSettingsPage() {
   const { user, tokens, fetchProfile } = useAuth();
@@ -31,6 +45,14 @@ export default function StudentSettingsPage() {
   const [parentEmail, setParentEmail] = useState("");
   const [requesting, setRequesting] = useState(false);
   const [linkActionId, setLinkActionId] = useState<number | null>(null);
+  const [subscriptions, setSubscriptions] = useState<TutorSubscription[]>([]);
+  const [subscriptionsLoading, setSubscriptionsLoading] = useState(true);
+  const [cancellingReference, setCancellingReference] = useState<string | null>(
+    null
+  );
+
+  const canManageSubscriptions =
+    user?.role === "student" && !user?.is_parent_managed_child;
 
   const loadLinks = useCallback(async () => {
     if (!tokens) return;
@@ -45,7 +67,37 @@ export default function StudentSettingsPage() {
     }
   }, [tokens]);
 
-  useEffect(() => { loadLinks(); }, [loadLinks]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadLinks();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadLinks]);
+
+  const loadSubscriptions = useCallback(async () => {
+    if (!tokens || !canManageSubscriptions) {
+      setSubscriptions([]);
+      setSubscriptionsLoading(false);
+      return;
+    }
+
+    setSubscriptionsLoading(true);
+    try {
+      const response = await paymentApi.getMySubscriptions(tokens.access);
+      setSubscriptions(normalizeSubscriptions(response));
+    } catch {
+      toast.error("Failed to load subscriptions.");
+    } finally {
+      setSubscriptionsLoading(false);
+    }
+  }, [canManageSubscriptions, tokens, toast]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadSubscriptions();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadSubscriptions]);
 
   async function handleRequestParent(e: React.FormEvent) {
     e.preventDefault();
@@ -110,6 +162,43 @@ export default function StudentSettingsPage() {
     }
   }
 
+  async function handleCancelSubscription(reference: string) {
+    if (!tokens) return;
+
+    const subscription = subscriptions.find((item) => item.reference === reference);
+    if (!subscription) return;
+
+    const confirmCancel = window.confirm(
+      `Cancel ${subscription.tutor_name}'s ${subscription.billing_cycle} subscription? Access will stay active until ${new Date(
+        subscription.current_period_end
+      ).toLocaleDateString("en-ZA")}.`
+    );
+
+    if (!confirmCancel) return;
+
+    setCancellingReference(reference);
+    try {
+      const response = await paymentApi.cancelSubscription(tokens.access, reference);
+      setSubscriptions((prev) =>
+        prev.map((item) =>
+          item.reference === reference ? response.subscription : item
+        )
+      );
+      toast.success(response.detail);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const detail = err.body.detail;
+        toast.error(
+          typeof detail === "string" ? detail : "Failed to cancel subscription."
+        );
+      } else {
+        toast.error("Something went wrong.");
+      }
+    } finally {
+      setCancellingReference(null);
+    }
+  }
+
   const loadProfile = useCallback(async () => {
     if (!tokens) return;
     setLoading(true);
@@ -128,7 +217,12 @@ export default function StudentSettingsPage() {
     }
   }, [tokens, toast]);
 
-  useEffect(() => { loadProfile(); }, [loadProfile]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadProfile();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadProfile]);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -294,6 +388,129 @@ export default function StudentSettingsPage() {
           </div>
         </div>
       </div>
+
+      {canManageSubscriptions && (
+        <div className="mt-4 bg-white border-[1.5px] border-neutral-200 rounded-2xl p-6">
+          <div className="flex items-center justify-between gap-3 mb-5">
+            <div>
+              <div className="text-[.9rem] font-bold">Tutor Subscriptions</div>
+              <p className="text-sm text-neutral-500 mt-1">
+                Cancel a subscription here if you no longer want it to renew.
+              </p>
+            </div>
+            <Badge variant="violet">{subscriptions.length}</Badge>
+          </div>
+
+          {subscriptionsLoading ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="w-5 h-5 animate-spin text-neutral-400" />
+            </div>
+          ) : subscriptions.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-8 text-neutral-400">
+              <CreditCard className="w-7 h-7" />
+              <p className="text-[.82rem]">
+                No tutor subscriptions to manage yet.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+              {subscriptions.map((subscription) => {
+                const isActive =
+                  subscription.status === "active" &&
+                  subscription.is_currently_active;
+                const isCancelled = subscription.status === "cancelled";
+
+                return (
+                  <div
+                    key={subscription.reference}
+                    className="rounded-2xl border border-neutral-200 p-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-neutral-900 truncate">
+                          {subscription.tutor_name}
+                        </div>
+                        <div className="text-xs text-neutral-500 mt-1 capitalize">
+                          {subscription.billing_cycle} billing
+                        </div>
+                      </div>
+                      <Badge
+                        variant={
+                          isActive
+                            ? "green"
+                            : isCancelled
+                            ? "amber"
+                            : "neutral"
+                        }
+                      >
+                        {isActive
+                          ? "Active"
+                          : isCancelled
+                          ? "Cancelled"
+                          : "Expired"}
+                      </Badge>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                      <div className="rounded-xl bg-neutral-50 px-3 py-2.5">
+                        <div className="text-[.68rem] font-bold uppercase tracking-[0.08em] text-neutral-400">
+                          Amount
+                        </div>
+                        <div className="mt-1 font-semibold text-neutral-900">
+                          {formatMoney(subscription.amount)}
+                        </div>
+                      </div>
+                      <div className="rounded-xl bg-neutral-50 px-3 py-2.5">
+                        <div className="text-[.68rem] font-bold uppercase tracking-[0.08em] text-neutral-400">
+                          Access Until
+                        </div>
+                        <div className="mt-1 font-semibold text-neutral-900">
+                          {new Date(subscription.current_period_end).toLocaleDateString(
+                            "en-ZA"
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className="mt-3 text-xs text-neutral-500 leading-5">
+                      {isActive
+                        ? "This subscription renews automatically until you cancel it."
+                        : isCancelled
+                        ? "Cancellation is already scheduled, and access remains active until the end of the current paid period."
+                        : "This subscription has ended."}
+                    </p>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {isActive ? (
+                        <Button
+                          type="button"
+                          variant="danger-ghost"
+                          size="sm"
+                          loading={cancellingReference === subscription.reference}
+                          onClick={() =>
+                            handleCancelSubscription(subscription.reference)
+                          }
+                        >
+                          Cancel Subscription
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          href="/dashboard/student/tutors"
+                        >
+                          Browse Tutors
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Parent Links */}
       <div className="mt-4 bg-white border-[1.5px] border-neutral-200 rounded-2xl p-6">

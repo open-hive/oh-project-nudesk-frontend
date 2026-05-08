@@ -39,6 +39,9 @@ export default function AdminUsersPage() {
   const { tokens } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [count, setCount] = useState(0);
+  const [next, setNext] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -72,12 +75,32 @@ export default function AdminUsersPage() {
         { token: tokens.access }
       );
       setUsers(data.results);
+      setCount(data.count);
+      setNext(data.next);
     } catch {
-      /* silent */
+      setUsers([]);
+      setCount(0);
+      setNext(null);
     } finally {
       setLoading(false);
     }
   }, [tokens, search, roleFilter, statusFilter]);
+
+  async function loadMoreUsers() {
+    if (!next || !tokens) return;
+    setLoadingMore(true);
+    try {
+      const url = new URL(next);
+      const endpoint = (url.pathname + url.search).replace(/^\/apis/, "");
+      const data = await apiFetch<PaginatedResponse<AdminUser>>(endpoint, {
+        token: tokens.access,
+      });
+      setUsers((prev) => [...prev, ...data.results]);
+      setNext(data.next);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   useEffect(() => {
     const id = setTimeout(fetchUsers, 300);
@@ -270,6 +293,9 @@ export default function AdminUsersPage() {
             <option value="active">Active</option>
             <option value="suspended">Suspended</option>
           </select>
+          <div className="ml-auto text-[.82rem] text-neutral-500 self-center">
+            {count} users
+          </div>
         </div>
 
         {/* Table */}
@@ -282,71 +308,80 @@ export default function AdminUsersPage() {
         ) : users.length === 0 ? (
           <div className="text-center py-16 text-sm text-neutral-400">No users found.</div>
         ) : (
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b border-neutral-200">
-                <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">User</th>
-                <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Role</th>
-                <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Joined</th>
-                <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Status</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((u, i) => (
-                <tr key={u.id} className="border-b border-neutral-100 last:border-b-0">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full ${avatarColors[i % avatarColors.length]} text-white flex items-center justify-center text-[.65rem] font-bold shrink-0`}>
-                        {getInitials(u)}
-                      </div>
-                      <div>
-                        <div className="text-[.875rem] font-semibold">{getDisplayName(u)}</div>
-                        <div className="text-[.72rem] text-neutral-500">{u.email}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge variant={roleColors[u.role] ?? "neutral"}>
-                      {u.role.charAt(0).toUpperCase() + u.role.slice(1)}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-[.82rem] text-neutral-500">
-                    {new Date(u.date_joined).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge variant={u.is_active ? "green" : "red"}>
-                      {u.is_active ? "Active" : "Suspended"}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-1.5 justify-end">
-                      <Button variant="ghost" size="sm" onClick={() => setSelected(u)}>View</Button>
-                      {u.is_active ? (
-                        <Button
-                          variant="danger-ghost"
-                          size="sm"
-                          loading={actionLoading === u.id}
-                          onClick={() => handleSuspend(u)}
-                        >
-                          Suspend
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="success-ghost"
-                          size="sm"
-                          loading={actionLoading === u.id}
-                          onClick={() => handleReinstate(u)}
-                        >
-                          Reinstate
-                        </Button>
-                      )}
-                    </div>
-                  </td>
+          <div className="space-y-4">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-neutral-200">
+                  <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">User</th>
+                  <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Role</th>
+                  <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Joined</th>
+                  <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">Status</th>
+                  <th className="px-4 py-3"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {users.map((u, i) => (
+                  <tr key={u.id} className="border-b border-neutral-100 last:border-b-0">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-full ${avatarColors[i % avatarColors.length]} text-white flex items-center justify-center text-[.65rem] font-bold shrink-0`}>
+                          {getInitials(u)}
+                        </div>
+                        <div>
+                          <div className="text-[.875rem] font-semibold">{getDisplayName(u)}</div>
+                          <div className="text-[.72rem] text-neutral-500">{u.email}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant={roleColors[u.role] ?? "neutral"}>
+                        {u.role.charAt(0).toUpperCase() + u.role.slice(1)}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-[.82rem] text-neutral-500">
+                      {new Date(u.date_joined).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant={u.is_active ? "green" : "red"}>
+                        {u.is_active ? "Active" : "Suspended"}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1.5 justify-end">
+                        <Button variant="ghost" size="sm" onClick={() => setSelected(u)}>View</Button>
+                        {u.is_active ? (
+                          <Button
+                            variant="danger-ghost"
+                            size="sm"
+                            loading={actionLoading === u.id}
+                            onClick={() => handleSuspend(u)}
+                          >
+                            Suspend
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="success-ghost"
+                            size="sm"
+                            loading={actionLoading === u.id}
+                            onClick={() => handleReinstate(u)}
+                          >
+                            Reinstate
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {next ? (
+              <div className="flex justify-center pb-4">
+                <Button variant="secondary" size="sm" loading={loadingMore} onClick={loadMoreUsers}>
+                  Load more users
+                </Button>
+              </div>
+            ) : null}
+          </div>
         )}
       </div>
 

@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+:root {
+  --font-geist-sans: "Aptos", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-geist-mono: "SFMono-Regular", "Cascadia Code", Consolas, "Liberation Mono", monospace;
+}
+
 @theme inline {
   /* Violet palette */
   --color-violet-50: #F5F3FF;

@@ -1,12 +1,26 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, CreditCard } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
-import { apiFetch, ApiError } from "@/lib/api";
-import type { Profile } from "@/lib/types";
+import { apiFetch, parentApi, paymentApi, ApiError } from "@/lib/api";
+import type { ParentPreference, Profile, TutorSubscription } from "@/lib/types";
+
+function normalizeSubscriptions(
+  data: TutorSubscription[] | { results?: TutorSubscription[] }
+) {
+  return Array.isArray(data) ? data : data.results ?? [];
+}
+
+function formatMoney(value: string) {
+  return `BWP ${Number(value || 0).toLocaleString("en-BW", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
 
 export default function ParentSettingsPage() {
   const { user, tokens, fetchProfile } = useAuth();
@@ -19,6 +33,12 @@ export default function ParentSettingsPage() {
   const [lastName, setLastName] = useState("");
   const [bio, setBio] = useState("");
   const [phone, setPhone] = useState("");
+  const [preferences, setPreferences] = useState<ParentPreference | null>(null);
+  const [subscriptions, setSubscriptions] = useState<TutorSubscription[]>([]);
+  const [subscriptionsLoading, setSubscriptionsLoading] = useState(true);
+  const [cancellingReference, setCancellingReference] = useState<string | null>(
+    null
+  );
 
   const [notifications, setNotifications] = useState({
     childActivity: true,
@@ -34,10 +54,12 @@ export default function ParentSettingsPage() {
       const p = await apiFetch<Profile>("/users/profile/setup/", {
         token: tokens.access,
       });
+      const preferenceData = await parentApi.getPreferences(tokens.access);
       setFirstName(p.first_name);
       setLastName(p.last_name);
       setBio(p.bio || "");
       setPhone(p.phone || "");
+      setPreferences(preferenceData);
     } catch {
       toast.error("Failed to load profile.");
     } finally {
@@ -46,8 +68,36 @@ export default function ParentSettingsPage() {
   }, [tokens, toast]);
 
   useEffect(() => {
-    loadProfile();
+    const timer = window.setTimeout(() => {
+      void loadProfile();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [loadProfile]);
+
+  const loadSubscriptions = useCallback(async () => {
+    if (!tokens) {
+      setSubscriptions([]);
+      setSubscriptionsLoading(false);
+      return;
+    }
+
+    setSubscriptionsLoading(true);
+    try {
+      const response = await paymentApi.getMySubscriptions(tokens.access);
+      setSubscriptions(normalizeSubscriptions(response));
+    } catch {
+      toast.error("Failed to load subscriptions.");
+    } finally {
+      setSubscriptionsLoading(false);
+    }
+  }, [tokens, toast]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadSubscriptions();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadSubscriptions]);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -65,6 +115,10 @@ export default function ParentSettingsPage() {
         }),
       });
       await fetchProfile();
+      if (preferences) {
+        const updatedPreferences = await parentApi.updatePreferences(tokens.access, preferences);
+        setPreferences(updatedPreferences);
+      }
       toast.success("Profile updated.");
     } catch (err) {
       if (err instanceof ApiError) {
@@ -79,6 +133,43 @@ export default function ParentSettingsPage() {
     }
   }
 
+  async function handleCancelSubscription(reference: string) {
+    if (!tokens) return;
+
+    const subscription = subscriptions.find((item) => item.reference === reference);
+    if (!subscription) return;
+
+    const confirmCancel = window.confirm(
+      `Cancel ${subscription.tutor_name}'s subscription for ${subscription.student_name}? Access will stay active until ${new Date(
+        subscription.current_period_end
+      ).toLocaleDateString("en-ZA")}.`
+    );
+
+    if (!confirmCancel) return;
+
+    setCancellingReference(reference);
+    try {
+      const response = await paymentApi.cancelSubscription(tokens.access, reference);
+      setSubscriptions((prev) =>
+        prev.map((item) =>
+          item.reference === reference ? response.subscription : item
+        )
+      );
+      toast.success(response.detail);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const detail = err.body.detail;
+        toast.error(
+          typeof detail === "string" ? detail : "Failed to cancel subscription."
+        );
+      } else {
+        toast.error("Something went wrong.");
+      }
+    } finally {
+      setCancellingReference(null);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -86,6 +177,11 @@ export default function ParentSettingsPage() {
       </div>
     );
   }
+
+  const autoAssign = preferences?.auto_assign_single_child ?? true;
+  const allowChildSelfSubscription =
+    preferences?.allow_child_self_subscription ?? false;
+  const defaultLearningAssignee = preferences?.default_learning_assignee ?? "child";
 
   return (
     <div>
@@ -171,6 +267,237 @@ export default function ParentSettingsPage() {
               </div>
             </div>
           </form>
+
+          <div className="bg-white border-[1.5px] border-neutral-200 rounded-2xl p-6">
+            <div className="text-[.9rem] font-bold mb-5">Access & Learning Setup</div>
+            <div className="space-y-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-[.85rem] font-semibold text-neutral-900">
+                    Auto-assign the current course for a single child
+                  </div>
+                  <p className="text-sm text-neutral-500 mt-1">
+                    If you only have one linked child, the app can automatically assign the course you were viewing right after a tutor subscription is paid.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={autoAssign}
+                  onClick={() =>
+                    setPreferences((prev) => ({
+                      auto_assign_single_child: !(prev?.auto_assign_single_child ?? true),
+                      allow_child_self_subscription:
+                        prev?.allow_child_self_subscription ?? false,
+                      default_learning_assignee:
+                        prev?.default_learning_assignee ?? "child",
+                      updated_at: prev?.updated_at ?? "",
+                    }))
+                  }
+                  className={`relative mt-1 h-6 w-11 rounded-full transition-colors ${
+                    autoAssign ? "bg-primary" : "bg-neutral-300"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
+                      autoAssign ? "translate-x-5" : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-[.85rem] font-semibold text-neutral-900">
+                    Let linked children buy subscriptions themselves
+                  </div>
+                  <p className="text-sm text-neutral-500 mt-1">
+                    Keep this off if you want all tutor discovery and subscription decisions to stay on the parent dashboard. Turn it on only when a child should manage their own tutor subscriptions.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={allowChildSelfSubscription}
+                  onClick={() =>
+                    setPreferences((prev) => ({
+                      auto_assign_single_child: prev?.auto_assign_single_child ?? true,
+                      allow_child_self_subscription:
+                        !(prev?.allow_child_self_subscription ?? false),
+                      default_learning_assignee:
+                        prev?.default_learning_assignee ?? "child",
+                      updated_at: prev?.updated_at ?? "",
+                    }))
+                  }
+                  className={`relative mt-1 h-6 w-11 rounded-full transition-colors ${
+                    allowChildSelfSubscription ? "bg-primary" : "bg-neutral-300"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
+                      allowChildSelfSubscription ? "translate-x-5" : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-[.8rem] font-semibold text-neutral-700 mb-1.5">
+                  Default learning-plan owner
+                </label>
+                <select
+                  className="w-full px-3.5 py-2.5 border-[1.5px] border-neutral-200 rounded-[10px] text-sm bg-white focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
+                  value={defaultLearningAssignee}
+                  onChange={(e) =>
+                    setPreferences((prev) => ({
+                      auto_assign_single_child: prev?.auto_assign_single_child ?? true,
+                      allow_child_self_subscription:
+                        prev?.allow_child_self_subscription ?? false,
+                      default_learning_assignee: e.target.value as "child" | "self",
+                      updated_at: prev?.updated_at ?? "",
+                    }))
+                  }
+                >
+                  <option value="child">Linked child</option>
+                  <option value="self">Parent self</option>
+                </select>
+                <p className="text-sm text-neutral-500 mt-1.5">
+                  This affects new learning-path items. Use <strong>Parent self</strong> if you want to keep material in your own planning queue before assigning it to a child.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white border-[1.5px] border-neutral-200 rounded-2xl p-6">
+            <div className="flex items-center justify-between gap-3 mb-5">
+              <div>
+                <div className="text-[.9rem] font-bold">Tutor Subscriptions</div>
+                <p className="text-sm text-neutral-500 mt-1">
+                  Cancel a child&apos;s subscription here when you want it to stop
+                  renewing.
+                </p>
+              </div>
+              <Badge variant="violet">{subscriptions.length}</Badge>
+            </div>
+
+            {subscriptionsLoading ? (
+              <div className="flex justify-center py-6">
+                <Loader2 className="w-5 h-5 animate-spin text-neutral-400" />
+              </div>
+            ) : subscriptions.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-8 text-neutral-400">
+                <CreditCard className="w-7 h-7" />
+                <p className="text-[.82rem]">
+                  No tutor subscriptions to manage yet.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                {subscriptions.map((subscription) => {
+                  const isActive =
+                    subscription.status === "active" &&
+                    subscription.is_currently_active;
+                  const isCancelled = subscription.status === "cancelled";
+
+                  return (
+                    <div
+                      key={subscription.reference}
+                      className="rounded-2xl border border-neutral-200 p-4"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-neutral-900 truncate">
+                            {subscription.tutor_name}
+                          </div>
+                          <div className="text-xs text-neutral-500 mt-1 truncate">
+                            For {subscription.student_name}
+                          </div>
+                        </div>
+                        <Badge
+                          variant={
+                            isActive
+                              ? "green"
+                              : isCancelled
+                              ? "amber"
+                              : "neutral"
+                          }
+                        >
+                          {isActive
+                            ? "Active"
+                            : isCancelled
+                            ? "Cancelled"
+                            : "Expired"}
+                        </Badge>
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                        <div className="rounded-xl bg-neutral-50 px-3 py-2.5">
+                          <div className="text-[.68rem] font-bold uppercase tracking-[0.08em] text-neutral-400">
+                            Billing
+                          </div>
+                          <div className="mt-1 font-semibold text-neutral-900 capitalize">
+                            {subscription.billing_cycle}
+                          </div>
+                        </div>
+                        <div className="rounded-xl bg-neutral-50 px-3 py-2.5">
+                          <div className="text-[.68rem] font-bold uppercase tracking-[0.08em] text-neutral-400">
+                            Amount
+                          </div>
+                          <div className="mt-1 font-semibold text-neutral-900">
+                            {formatMoney(subscription.amount)}
+                          </div>
+                        </div>
+                        <div className="rounded-xl bg-neutral-50 px-3 py-2.5">
+                          <div className="text-[.68rem] font-bold uppercase tracking-[0.08em] text-neutral-400">
+                            Started
+                          </div>
+                          <div className="mt-1 font-semibold text-neutral-900">
+                            {new Date(subscription.started_at).toLocaleDateString(
+                              "en-ZA"
+                            )}
+                          </div>
+                        </div>
+                        <div className="rounded-xl bg-neutral-50 px-3 py-2.5">
+                          <div className="text-[.68rem] font-bold uppercase tracking-[0.08em] text-neutral-400">
+                            Access Until
+                          </div>
+                          <div className="mt-1 font-semibold text-neutral-900">
+                            {new Date(subscription.current_period_end).toLocaleDateString(
+                              "en-ZA"
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <p className="mt-3 text-xs text-neutral-500 leading-5">
+                        {isActive
+                          ? "This subscription is still renewing for the child until you cancel it."
+                          : isCancelled
+                          ? "Cancellation is already scheduled, and the child keeps access until the current paid period ends."
+                          : "This subscription has already ended."}
+                      </p>
+
+                      {isActive && (
+                        <div className="mt-4">
+                          <Button
+                            type="button"
+                            variant="danger-ghost"
+                            size="sm"
+                            loading={cancellingReference === subscription.reference}
+                            onClick={() =>
+                              handleCancelSubscription(subscription.reference)
+                            }
+                          >
+                            Cancel Subscription
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right column */}

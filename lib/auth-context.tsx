@@ -179,10 +179,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         id: number;
         email: string;
         username: string;
-        role: "student" | "tutor" | "admin";
+        role: "student" | "tutor" | "admin" | "parent";
         is_approved: boolean;
         is_email_verified: boolean;
         is_profile_complete: boolean;
+        is_parent_managed_child: boolean;
+        can_self_subscribe: boolean;
       }>("/users/profile/", { token: currentTokens.access });
 
       const updatedUser: LoginUser = {
@@ -192,6 +194,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: userData.role,
         is_approved: userData.is_approved,
         is_profile_complete: userData.is_profile_complete,
+        is_parent_managed_child: userData.is_parent_managed_child,
+        can_self_subscribe: userData.can_self_subscribe,
       };
 
       localStorage.setItem("user", JSON.stringify(updatedUser));

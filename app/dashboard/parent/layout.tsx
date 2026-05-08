@@ -9,6 +9,7 @@ import {
   BookOpen,
   Search,
   CreditCard,
+  Map,
   Settings,
 } from "lucide-react";
 import { Sidebar, type SidebarSection } from "@/components/dashboard/sidebar";
@@ -25,6 +26,7 @@ const sections: SidebarSection[] = [
       { label: "Children", href: "/dashboard/parent/children", icon: Users },
       { label: "Discover Tutors", href: "/dashboard/parent/tutors", icon: Search },
       { label: "Browse & Enroll", href: "/dashboard/parent/browse", icon: BookOpen },
+      { label: "Access & Plans", href: "/dashboard/parent/access", icon: Map },
       { label: "Payments", href: "/dashboard/parent/payments", icon: CreditCard },
     ],
   },
@@ -41,6 +43,7 @@ const titleMap: Record<string, string> = {
   "/dashboard/parent/children": "Children",
   "/dashboard/parent/tutors": "Discover Tutors",
   "/dashboard/parent/browse": "Browse & Enroll",
+  "/dashboard/parent/access": "Access & Plans",
   "/dashboard/parent/payments": "Payments & Subscriptions",
   "/dashboard/parent/settings": "Settings",
 };

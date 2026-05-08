@@ -69,6 +69,9 @@ export function ScheduleLiveModal({
       });
     } catch (err) {
       if (err instanceof ApiError && err.body) {
+        if (typeof err.body.detail === "string") {
+          toast.error(err.body.detail);
+        }
         const fieldErrors: Record<string, string> = {};
         for (const [key, val] of Object.entries(err.body)) {
           fieldErrors[key] = Array.isArray(val) ? val[0] : String(val);

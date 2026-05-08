@@ -1,14 +1,7 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
 import { ToastProvider } from "@/components/ui/toast";
 import "./globals.css";
-
-const inter = Inter({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "NuDesk - Learn from Expert Tutors",
@@ -22,8 +15,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} h-full`}>
-      <body className="min-h-full flex flex-col antialiased">
+    <html lang="en" className="h-full">
+      <body suppressHydrationWarning className="min-h-full flex flex-col antialiased">
         <AuthProvider>
           <ToastProvider>{children}</ToastProvider>
         </AuthProvider>

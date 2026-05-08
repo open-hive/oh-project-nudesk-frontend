@@ -7,6 +7,7 @@ import {
   Award,
   Clock,
   Play,
+  BookOpen,
   Calendar,
   Loader2,
   Users,
@@ -16,11 +17,17 @@ import {
 
 function getNotifStyle(type: string): { bg: string; color: string; Icon: LucideIcon } {
   if (type.startsWith("parent_link")) return { bg: "bg-orange-50", color: "text-orange-500", Icon: Users };
-  if (type === "live_class_created" || type === "live_class_reminder") return { bg: "bg-violet-50", color: "text-primary", Icon: Play };
+  if (type === "live_class_created" || type === "live_class_reminder" || type === "new_live_class_scheduled") {
+    return { bg: "bg-violet-50", color: "text-primary", Icon: Play };
+  }
+  if (type === "new_study_guide_published") {
+    return { bg: "bg-emerald-50", color: "text-emerald-600", Icon: BookOpen };
+  }
   if (type === "payment_received") return { bg: "bg-green-50", color: "text-green-600", Icon: CreditCard };
   if (type === "course_completed") return { bg: "bg-amber-50", color: "text-amber-600", Icon: Award };
   return { bg: "bg-violet-50", color: "text-primary", Icon: Calendar };
 }
+
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -75,7 +82,12 @@ export default function StudentOverviewPage() {
     }
   }, [tokens]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
 
   if (loading || !dash) {
     return (
@@ -86,6 +98,8 @@ export default function StudentOverviewPage() {
   }
 
   const firstName = user?.username ?? "Student";
+  const canDiscoverTutors =
+    !(user?.is_parent_managed_child && !user.can_self_subscribe);
 
   const stats = [
     {
@@ -129,9 +143,15 @@ export default function StudentOverviewPage() {
             </p>
           )}
         </div>
-        <Button variant="secondary" size="sm" href="/dashboard/student/tutors">
-          Discover Tutors
-        </Button>
+        {canDiscoverTutors ? (
+          <Button variant="secondary" size="sm" href="/dashboard/student/tutors">
+            Discover Tutors
+          </Button>
+        ) : (
+          <div className="rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-medium text-orange-700">
+            Tutor subscriptions are managed by your parent
+          </div>
+        )}
       </div>
 
       {/* Stats grid */}
@@ -194,7 +214,11 @@ export default function StudentOverviewPage() {
                     Module {c.completed_modules} of {c.module_count} · {c.progress_percentage}% complete
                   </div>
                 </div>
-                <Button variant="primary" size="sm">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  href={`/dashboard/student/courses/${c.course_slug}`}
+                >
                   <Play className="w-3 h-3" />
                   Resume
                 </Button>

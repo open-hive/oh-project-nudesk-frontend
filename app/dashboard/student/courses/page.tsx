@@ -10,13 +10,18 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { useToast } from "@/components/ui/toast";
 import { PaymentModal } from "@/components/dashboard/payment-modal";
 import { useAuth } from "@/lib/auth-context";
-import { apiFetch, ApiError } from "@/lib/api";
-import type { Course, Enrollment, PaginatedResponse } from "@/lib/types";
+import { apiFetch, ApiError, paymentApi } from "@/lib/api";
+import type {
+  Course,
+  Enrollment,
+  PaginatedResponse,
+  TutorSubscription,
+} from "@/lib/types";
 
 type Tab = "my-courses" | "browse";
 
 export default function StudentCoursesPage() {
-  const { tokens } = useAuth();
+  const { tokens, user } = useAuth();
   const toast = useToast();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("my-courses");
@@ -29,10 +34,13 @@ export default function StudentCoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [browsing, setBrowsing] = useState(true);
   const [search, setSearch] = useState("");
+  const [subscriptions, setSubscriptions] = useState<TutorSubscription[]>([]);
 
   // Per-item action loading
   const [actionLoading, setActionLoading] = useState<Record<number, boolean>>({});
   const [paymentTarget, setPaymentTarget] = useState<Course | null>(null);
+  const canSelfSubscribe =
+    !(user?.is_parent_managed_child && !user.can_self_subscribe);
 
   const enrolledCourseIds = useMemo(
     () => new Set(enrollments.map((e) => e.course)),
@@ -43,10 +51,16 @@ export default function StudentCoursesPage() {
     if (!tokens) return;
     setEnrollLoading(true);
     try {
-      const data = await apiFetch<PaginatedResponse<Enrollment>>("/students/enrollments/", {
-        token: tokens.access,
-      });
+      const [data, subscriptionData] = await Promise.all([
+        apiFetch<PaginatedResponse<Enrollment>>("/students/enrollments/", {
+          token: tokens.access,
+        }),
+        paymentApi.getMySubscriptions(tokens.access),
+      ]);
       setEnrollments(data.results);
+      setSubscriptions(
+        Array.isArray(subscriptionData) ? subscriptionData : subscriptionData.results ?? []
+      );
     } catch {
       toast.error("Failed to load your courses.");
     } finally {
@@ -69,8 +83,11 @@ export default function StudentCoursesPage() {
   }, []);
 
   useEffect(() => {
-    fetchEnrollments();
-    fetchBrowse();
+    const timer = window.setTimeout(() => {
+      void fetchEnrollments();
+      void fetchBrowse();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [fetchEnrollments, fetchBrowse]);
 
   async function handleEnrollFree(course: Course) {
@@ -95,8 +112,37 @@ export default function StudentCoursesPage() {
     }
   }
 
+  async function handleEnrollWithSubscription(course: Course) {
+    if (!tokens) return;
+    setActionLoading((p) => ({ ...p, [course.id]: true }));
+    try {
+      await apiFetch("/students/enroll/", {
+        method: "POST",
+        token: tokens.access,
+        body: JSON.stringify({ course_slug: course.slug }),
+      });
+      toast.success("Course unlocked from your active tutor subscription.");
+      await fetchEnrollments();
+    } catch (e) {
+      toast.error(
+        e instanceof ApiError
+          ? String((e.body as Record<string, string>).detail ?? "Enrollment failed.")
+          : "Enrollment failed."
+      );
+    } finally {
+      setActionLoading((p) => ({ ...p, [course.id]: false }));
+    }
+  }
+
   function handleBuyCourse(course: Course) {
     setPaymentTarget(course);
+  }
+
+  function hasTutorSubscription(tutorId: number) {
+    return subscriptions.some(
+      (subscription) =>
+        subscription.tutor === tutorId && subscription.is_currently_active
+    );
   }
 
   const filteredCourses = useMemo(() => {
@@ -284,17 +330,19 @@ export default function StudentCoursesPage() {
                           <Button variant="outline-v" size="sm" className="flex-1" onClick={() => setTab("my-courses")}>
                             Already Enrolled
                           </Button>
-                        ) : c.is_free ? (
+                        ) : c.is_free || hasTutorSubscription(c.tutor) ? (
                           <Button
                             variant="primary"
                             size="sm"
                             className="flex-1"
                             loading={isLoading}
-                            onClick={() => handleEnrollFree(c)}
+                            onClick={() =>
+                              c.is_free ? handleEnrollFree(c) : handleEnrollWithSubscription(c)
+                            }
                           >
-                            Enroll Free
+                            {c.is_free ? "Enroll Free" : "Unlock with Subscription"}
                           </Button>
-                        ) : (
+                        ) : canSelfSubscribe ? (
                           <Button
                             variant="primary"
                             size="sm"
@@ -303,6 +351,15 @@ export default function StudentCoursesPage() {
                           >
                             <ShoppingCart className="w-3.5 h-3.5 mr-1.5" />
                             Subscribe to Unlock
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="flex-1"
+                            disabled
+                          >
+                            Managed by Parent
                           </Button>
                         )}
                       </div>

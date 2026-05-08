@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Wallet, Users, BookOpen, Star, Book, Video, MonitorPlay, FileText, LayoutDashboard } from "lucide-react";
+import { AlertCircle, Wallet, Users, BookOpen, Star, Book, Video, MonitorPlay, FileText, LayoutDashboard } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
 import { apiFetch } from "@/lib/api";
 import type { TutorDashboard, MonthlyRevenue, PaginatedResponse } from "@/lib/types";
+import Link from "next/link";
 
 interface TopCourse {
   id: number;
@@ -67,6 +68,16 @@ export default function TutorOverviewPage() {
     fetchData();
   }, [fetchData]);
 
+  useEffect(() => {
+    if (!dashboard || dashboard.payments_ready === true) return;
+    const storageKey = `nudesk:tutor-payments-readiness:${profile?.id ?? "me"}`;
+    if (window.sessionStorage.getItem(storageKey)) return;
+    toast.info(
+      "Set your subscription fees in Payments first. Course, guide, and live-session creation stays locked until then."
+    );
+    window.sessionStorage.setItem(storageKey, "seen");
+  }, [dashboard, profile?.id, toast]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -116,6 +127,28 @@ export default function TutorOverviewPage() {
           Here&apos;s how your subscriptions and content are performing this month.
         </p>
       </div>
+
+      {!dashboard.payments_ready && (
+        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 md:p-5">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                <AlertCircle className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="text-sm font-bold text-neutral-900">Partial account readiness</div>
+                <p className="mt-1 max-w-2xl text-sm text-neutral-600">
+                  Your tutor account is active, but content creation is locked until you set at least one
+                  weekly, monthly, or yearly subscription fee in Payments.
+                </p>
+              </div>
+            </div>
+            <Link href="/dashboard/tutor/payments" className="shrink-0">
+              <Button variant="primary" size="sm">Set Fees</Button>
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-6">

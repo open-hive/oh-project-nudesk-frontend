@@ -175,27 +175,33 @@ export function PaymentModal({
   useEffect(() => {
     if (!open || user?.role !== "parent" || childId != null || !tokens?.access) return;
     if (childOptions && childOptions.length > 0) {
-      setAvailableChildren(childOptions);
-      setSelectedChildId((current) => current ?? childOptions[0]?.child_id ?? null);
-      return;
+      let cancelled = false;
+      Promise.resolve().then(() => {
+        if (cancelled) return;
+        setAvailableChildren(childOptions);
+        setSelectedChildId((current) => current ?? childOptions[0]?.child_id ?? null);
+      });
+      return () => {
+        cancelled = true;
+      };
     }
 
     let cancelled = false;
-    setLoadingChildren(true);
-    parentApi
-      .getChildren(tokens.access)
-      .then((children) => {
+    Promise.resolve().then(async () => {
+      if (cancelled) return;
+      setLoadingChildren(true);
+      try {
+        const children = await parentApi.getChildren(tokens.access);
         if (cancelled) return;
         setAvailableChildren(children);
         setSelectedChildId((current) => current ?? children[0]?.child_id ?? null);
-      })
-      .catch(() => {
+      } catch {
         if (cancelled) return;
         setAvailableChildren([]);
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoadingChildren(false);
-      });
+      }
+    });
 
     return () => {
       cancelled = true;
@@ -209,6 +215,10 @@ export function PaymentModal({
   const resolvedChildId = childId ?? selectedChildId;
   const isParentCheckout = user?.role === "parent";
   const isStudentCheckout = user?.role === "student";
+  const isParentManagedStudent =
+    isStudentCheckout &&
+    !!user?.is_parent_managed_child &&
+    !user?.can_self_subscribe;
   const returnPath = returnTo ?? (typeof window !== "undefined" ? window.location.pathname : "/");
   const audienceSubtitle =
     beneficiaryLabel
@@ -335,6 +345,10 @@ export function PaymentModal({
               <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
                 Only parent and student accounts can start a subscription checkout.
               </div>
+            ) : isParentManagedStudent ? (
+              <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm text-neutral-700">
+                Tutor subscriptions for this learner are managed by a linked parent or guardian. Ask them to subscribe from the parent dashboard if you still need access.
+              </div>
             ) : !plan || availablePlans.length === 0 ? (
               <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
                 This tutor has not published subscription pricing yet.
@@ -444,6 +458,7 @@ export function PaymentModal({
                 variant="primary"
                 size="sm"
                 disabled={
+                  isParentManagedStudent ||
                   !selectedPlan ||
                   (isParentCheckout &&
                     childId == null &&

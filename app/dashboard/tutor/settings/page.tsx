@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ArrowRight, Loader2, UserCircle2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
@@ -38,7 +38,10 @@ export default function TutorSettingsPage() {
   }, [tokens, toast]);
 
   useEffect(() => {
-    void load();
+    const timer = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [load]);
 
   async function handleSaveProfile(e: React.FormEvent) {
@@ -88,11 +91,11 @@ export default function TutorSettingsPage() {
       <div>
         <h2 className="text-[1.3rem] font-extrabold tracking-[-0.02em]">Settings</h2>
         <p className="text-sm text-neutral-500 mt-1">
-          Manage your tutor profile here. Subscription pricing and payout details now live in Payments.
+          Manage your tutor profile here.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
+      <div className="max-w-4xl">
         <form onSubmit={handleSaveProfile} className="bg-white rounded-2xl border border-neutral-200 p-5">
           <div className="text-[.9rem] font-bold mb-5">Tutor Profile</div>
           <div className="flex flex-col gap-3.5">
@@ -133,21 +136,6 @@ export default function TutorSettingsPage() {
             </Button>
           </div>
         </form>
-
-        <div className="bg-white rounded-2xl border border-neutral-200 p-5 h-fit">
-          <div className="w-10 h-10 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center mb-3">
-            <UserCircle2 className="w-5 h-5" />
-          </div>
-          <div className="text-[.9rem] font-bold mb-1">Payment Config Moved</div>
-          <p className="text-[.82rem] text-neutral-500 leading-6">
-            Set weekly, monthly, and yearly rates in the Payments page. That same config now drives paid course, study guide, and live session access across the platform.
-          </p>
-          <div className="mt-4">
-            <Button href="/dashboard/tutor/payments" variant="secondary" size="sm" icon={ArrowRight}>
-              Open Payments
-            </Button>
-          </div>
-        </div>
       </div>
     </div>
   );

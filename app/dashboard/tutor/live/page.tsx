@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Modal, ModalBody, ModalHead } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { ScheduleLiveModal } from "@/components/dashboard/schedule-live-modal";
 import { LiveClassroom } from "@/components/dashboard/live-classroom";
@@ -19,6 +20,7 @@ import { useAuth } from "@/lib/auth-context";
 import { apiFetch, ApiError } from "@/lib/api";
 import type {
   LiveClass,
+  TutorLiveClassAttendance,
   TurnCredentials,
   PaginatedResponse,
   Category,
@@ -37,6 +39,10 @@ export default function TutorLivePage() {
   const [inSession, setInSession] = useState(false);
   const [turnCredentials, setTurnCredentials] = useState<TurnCredentials | null>(null);
   const [managingClassId, setManagingClassId] = useState<number | null>(null);
+  const [attendanceOpen, setAttendanceOpen] = useState(false);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [attendanceSession, setAttendanceSession] = useState<LiveClass | null>(null);
+  const [attendanceRows, setAttendanceRows] = useState<TutorLiveClassAttendance[]>([]);
 
   const fetchData = useCallback(async () => {
     if (!tokens?.access) return;
@@ -61,18 +67,23 @@ export default function TutorLivePage() {
   }, [tokens?.access]);
 
   useEffect(() => {
-    fetchData();
+    const timer = window.setTimeout(() => {
+      void fetchData();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [fetchData]);
 
   const liveNow = sessions.find((s) => s.status === "live");
   const scheduled = sessions.filter((s) => s.status === "scheduled");
   const pending = sessions.filter((s) => s.status === "pending_review");
   const rejected = sessions.filter((s) => s.status === "rejected");
+  const completed = sessions.filter((s) => s.status === "completed");
   const allSessions = [
     ...(liveNow ? [liveNow] : []),
     ...scheduled,
     ...pending,
     ...rejected,
+    ...completed,
   ];
 
   const handleResubmit = async (id: number) => {
@@ -169,6 +180,30 @@ export default function TutorLivePage() {
   const handleCreated = () => {
     fetchData();
   };
+
+  const handleReviewAttendance = async (session: LiveClass) => {
+    if (!tokens?.access) return;
+    setAttendanceSession(session);
+    setAttendanceOpen(true);
+    setAttendanceLoading(true);
+    try {
+      const data = await apiFetch<PaginatedResponse<TutorLiveClassAttendance>>(
+        `/courses/my-live-classes/${session.id}/attendance/`,
+        {
+          token: tokens.access,
+        }
+      );
+      setAttendanceRows(data.results);
+    } catch {
+      toast.error("Failed to load attendance.");
+      setAttendanceRows([]);
+    } finally {
+      setAttendanceLoading(false);
+    }
+  };
+
+  const attendedCount = attendanceRows.filter((row) => row.attended).length;
+  const missedCount = attendanceRows.length - attendedCount;
 
   const displayName =
     profile?.first_name && profile?.last_name
@@ -325,6 +360,7 @@ export default function TutorLivePage() {
                       </Badge>
                     )}
                     {s.status === "rejected" && <Badge variant="red">Rejected</Badge>}
+                    {s.status === "completed" && <Badge variant="green">Completed</Badge>}
                   </td>
                   <td className="px-4 py-3">
                     {s.status === "live" && (
@@ -350,6 +386,15 @@ export default function TutorLivePage() {
                         Resubmit
                       </Button>
                     )}
+                    {s.status === "completed" && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => void handleReviewAttendance(s)}
+                      >
+                        Review Attendance
+                      </Button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -366,6 +411,102 @@ export default function TutorLivePage() {
         token={tokens?.access ?? ""}
         categories={categories}
       />
+
+      <Modal open={attendanceOpen} onClose={() => setAttendanceOpen(false)} size="lg">
+        <ModalHead
+          title="Attendance Review"
+          subtitle={attendanceSession?.title ?? "Live class attendance"}
+          onClose={() => setAttendanceOpen(false)}
+        />
+        <ModalBody>
+          {attendanceSession ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-neutral-200 p-4">
+                  <div className="text-[.7rem] uppercase tracking-[0.08em] text-neutral-400">
+                    Registered
+                  </div>
+                  <div className="mt-2 text-2xl font-extrabold text-neutral-900">
+                    {attendanceRows.length}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-green-200 bg-green-50 p-4">
+                  <div className="text-[.7rem] uppercase tracking-[0.08em] text-green-700">
+                    Completed
+                  </div>
+                  <div className="mt-2 text-2xl font-extrabold text-green-700">
+                    {attendedCount}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+                  <div className="text-[.7rem] uppercase tracking-[0.08em] text-neutral-500">
+                    Missed
+                  </div>
+                  <div className="mt-2 text-2xl font-extrabold text-neutral-700">
+                    {missedCount}
+                  </div>
+                </div>
+              </div>
+
+              {attendanceLoading ? (
+                <div className="flex items-center justify-center py-10">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                </div>
+              ) : attendanceRows.length === 0 ? (
+                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-500">
+                  No registrations recorded for this live class yet.
+                </div>
+              ) : (
+                <div className="overflow-hidden rounded-2xl border border-neutral-200">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-neutral-200 bg-neutral-50">
+                        <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">
+                          Student
+                        </th>
+                        <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">
+                          Registered
+                        </th>
+                        <th className="px-4 py-3 text-[.72rem] font-bold uppercase tracking-wider text-neutral-500">
+                          Result
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {attendanceRows.map((row) => (
+                        <tr key={row.id} className="border-b border-neutral-100 last:border-b-0">
+                          <td className="px-4 py-3">
+                            <div className="text-[.85rem] font-semibold text-neutral-900">
+                              {row.student_name}
+                            </div>
+                            <div className="text-[.74rem] text-neutral-500">
+                              {row.student_email}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-[.8rem] text-neutral-600">
+                            {new Date(row.registered_at).toLocaleString("en-ZA", {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge variant={row.completed_session ? "green" : "neutral"}>
+                              {row.completed_session ? "Completed" : "Missed"}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </ModalBody>
+      </Modal>
     </div>
   );
 }

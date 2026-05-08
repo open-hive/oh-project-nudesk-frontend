@@ -7,13 +7,18 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { PaymentModal } from "@/components/dashboard/payment-modal";
 import { useAuth } from "@/lib/auth-context";
-import { apiFetch, ApiError } from "@/lib/api";
-import type { StudyGuide, StudyGuideAccess, PaginatedResponse } from "@/lib/types";
+import { apiDownload, apiFetch, ApiError, paymentApi } from "@/lib/api";
+import type {
+  StudyGuide,
+  StudyGuideAccess,
+  PaginatedResponse,
+  TutorSubscription,
+} from "@/lib/types";
 
 type Tab = "browse" | "my-guides";
 
 export default function StudentGuidesPage() {
-  const { tokens } = useAuth();
+  const { tokens, user } = useAuth();
   const toast = useToast();
   const [tab, setTab] = useState<Tab>("browse");
 
@@ -25,10 +30,13 @@ export default function StudentGuidesPage() {
   // Accessed state — guides student has unlocked
   const [accessed, setAccessed] = useState<StudyGuideAccess[]>([]);
   const [accessedLoading, setAccessedLoading] = useState(true);
+  const [subscriptions, setSubscriptions] = useState<TutorSubscription[]>([]);
 
   // Per-guide action loading (slug → loading)
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [paymentTarget, setPaymentTarget] = useState<StudyGuide | null>(null);
+  const canSelfSubscribe =
+    !(user?.is_parent_managed_child && !user.can_self_subscribe);
 
   const accessedSlugs = useMemo(
     () => new Set(accessed.map((a) => a.guide_slug)),
@@ -52,10 +60,16 @@ export default function StudentGuidesPage() {
     if (!tokens) return;
     setAccessedLoading(true);
     try {
-      const data = await apiFetch<PaginatedResponse<StudyGuideAccess>>("/students/study-guides/", {
-        token: tokens.access,
-      });
+      const [data, subscriptionData] = await Promise.all([
+        apiFetch<PaginatedResponse<StudyGuideAccess>>("/students/study-guides/", {
+          token: tokens.access,
+        }),
+        paymentApi.getMySubscriptions(tokens.access),
+      ]);
       setAccessed(data.results);
+      setSubscriptions(
+        Array.isArray(subscriptionData) ? subscriptionData : subscriptionData.results ?? []
+      );
     } catch {
       toast.error("Failed to load your guides.");
     } finally {
@@ -65,31 +79,57 @@ export default function StudentGuidesPage() {
   }, [tokens]);
 
   useEffect(() => {
-    fetchBrowse();
-    fetchAccessed();
-  }, [fetchBrowse, fetchAccessed]);
+    const timer = window.setTimeout(() => {
+      void fetchBrowse();
+      void fetchAccessed();
+    }, 0);
+    return () => window.clearTimeout(timer);
+    }, [fetchBrowse, fetchAccessed]);
 
-  function openFile(url: string) {
-    window.open(url, "_blank", "noopener,noreferrer");
+  function fallbackFilename(title: string) {
+    const base = title.trim().replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "");
+    return `${base || "study_guide"}.pdf`;
   }
 
-  async function handleAccessFree(guide: StudyGuide) {
+  async function downloadGuide(
+    guide: Pick<StudyGuide, "slug" | "title">,
+    successMessage = "Guide downloaded."
+  ) {
     if (!tokens) return;
     setActionLoading((p) => ({ ...p, [guide.slug]: true }));
     try {
-      const access = await apiFetch<StudyGuideAccess>("/students/study-guides/access/", {
-        method: "POST",
-        token: tokens.access,
-        body: JSON.stringify({ study_guide_slug: guide.slug }),
-      });
-      setAccessed((prev) => [access, ...prev]);
-      toast.success("Guide unlocked!");
-      openFile(access.file);
+      const { blob, filename } = await apiDownload(
+        `/students/study-guides/${guide.slug}/download/`,
+        {
+          token: tokens.access,
+        }
+      );
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = filename ?? fallbackFilename(guide.title);
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(objectUrl);
+      await fetchAccessed();
+      toast.success(successMessage);
     } catch (e) {
-      toast.error(e instanceof ApiError ? String((e.body as Record<string, string>).detail ?? "Failed.") : "Failed.");
+      toast.error(
+        e instanceof ApiError
+          ? String((e.body as Record<string, string>).detail ?? "Failed.")
+          : "Failed."
+      );
     } finally {
       setActionLoading((p) => ({ ...p, [guide.slug]: false }));
     }
+  }
+
+  function hasTutorSubscription(tutorId: number) {
+    return subscriptions.some(
+      (subscription) =>
+        subscription.tutor === tutorId && subscription.is_currently_active
+    );
   }
 
   function handleBuyGuide(guide: StudyGuide) {
@@ -97,7 +137,7 @@ export default function StudentGuidesPage() {
   }
 
   function handleDownloadAccessed(access: StudyGuideAccess) {
-    openFile(access.file);
+    void downloadGuide({ slug: access.guide_slug, title: access.guide_title });
   }
 
   const filteredGuides = useMemo(() => {
@@ -166,6 +206,8 @@ export default function StudentGuidesPage() {
               {filteredGuides.map((g) => {
                 const isOwned = accessedSlugs.has(g.slug);
                 const isLoading = !!actionLoading[g.slug];
+                const hasSubscription = hasTutorSubscription(g.tutor);
+                const canDownloadDirectly = isOwned || g.is_free || hasSubscription;
                 return (
                   <div
                     key={g.id}
@@ -188,30 +230,22 @@ export default function StudentGuidesPage() {
                       <span>{g.category_name}</span>
                     </div>
                     <div className="flex gap-2">
-                      {isOwned ? (
+                      {canDownloadDirectly ? (
                         <Button
-                          variant="outline-v"
-                          size="sm"
-                          className="flex-1"
-                          onClick={() => {
-                            const a = accessed.find((x) => x.guide_slug === g.slug);
-                            if (a) handleDownloadAccessed(a);
-                          }}
-                        >
-                          <Download className="w-3.5 h-3.5 mr-1.5" />
-                          Download
-                        </Button>
-                      ) : g.is_free ? (
-                        <Button
-                          variant="primary"
+                          variant={isOwned ? "outline-v" : "primary"}
                           size="sm"
                           className="flex-1"
                           loading={isLoading}
-                          onClick={() => handleAccessFree(g)}
+                          onClick={() =>
+                            void downloadGuide({ slug: g.slug, title: g.title })
+                          }
                         >
-                          Access Free
+                          <Download className="w-3.5 h-3.5 mr-1.5" />
+                          {g.is_free && !isOwned && !hasSubscription
+                            ? "Download Free"
+                            : "Download"}
                         </Button>
-                      ) : (
+                      ) : canSelfSubscribe ? (
                         <Button
                           variant="primary"
                           size="sm"
@@ -220,6 +254,15 @@ export default function StudentGuidesPage() {
                         >
                           <ShoppingCart className="w-3.5 h-3.5 mr-1.5" />
                           Subscribe to Unlock
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="flex-1"
+                          disabled
+                        >
+                          Managed by Parent
                         </Button>
                       )}
                     </div>
@@ -262,10 +305,11 @@ export default function StudentGuidesPage() {
                 <Button
                   variant="outline-v"
                   size="sm"
+                  loading={!!actionLoading[a.guide_slug]}
                   onClick={() => handleDownloadAccessed(a)}
                 >
                   <Download className="w-3.5 h-3.5 mr-1.5" />
-                  Open / Download
+                  Download Guide
                 </Button>
               </div>
             ))}
@@ -278,27 +322,25 @@ export default function StudentGuidesPage() {
           open={!!paymentTarget}
           onClose={() => setPaymentTarget(null)}
           onSuccess={async () => {
+            const guide = paymentTarget;
             setPaymentTarget(null);
-            if (!tokens) return;
-            const slug = paymentTarget.slug;
-            try {
-              await apiFetch<StudyGuideAccess>("/students/study-guides/access/", {
-                method: "POST",
-                token: tokens.access,
-                body: JSON.stringify({ study_guide_slug: slug }),
-              });
-              const data = await apiFetch<PaginatedResponse<StudyGuideAccess>>("/students/study-guides/", { token: tokens.access });
-              setAccessed(data.results);
-              const newAccess = data.results.find((a) => a.guide_slug === slug);
-              if (newAccess?.file) openFile(newAccess.file);
-              toast.success("Subscription activated and guide unlocked!");
-            } catch (e) {
-              toast.error(
-                e instanceof ApiError
-                  ? String((e.body as Record<string, string>).detail ?? "Failed to unlock guide.")
-                  : "Failed to unlock guide."
-              );
+            if (!guide) return;
+            if (tokens) {
+              try {
+                const subscriptionData = await paymentApi.getMySubscriptions(tokens.access);
+                setSubscriptions(
+                  Array.isArray(subscriptionData)
+                    ? subscriptionData
+                    : subscriptionData.results ?? []
+                );
+              } catch {
+                toast.warning("Subscription is active, but the guide list needs a refresh.");
+              }
             }
+            await downloadGuide(
+              { slug: guide.slug, title: guide.title },
+              "Subscription activated and guide downloaded!"
+            );
           }}
           tutorId={paymentTarget.tutor}
           tutorName={paymentTarget.tutor_name}

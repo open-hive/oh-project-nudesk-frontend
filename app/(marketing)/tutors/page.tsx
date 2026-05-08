@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Search, Star, Users, BookOpen, Video, SlidersHorizontal } from "lucide-react";
@@ -27,6 +27,34 @@ function getStartingPrice(tutor: TutorDiscovery) {
 }
 
 export default function TutorsPage() {
+  return (
+    <Suspense fallback={<TutorsPageFallback />}>
+      <TutorsPageContent />
+    </Suspense>
+  );
+}
+
+function TutorsPageFallback() {
+  return (
+    <section className="py-20">
+      <div className="max-w-[1200px] mx-auto px-6">
+        <div className="flex items-center justify-center py-20">
+          <svg
+            className="animate-spin w-6 h-6 text-violet-600"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+          >
+            <path d="M21 12a9 9 0 11-6.219-8.56" />
+          </svg>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TutorsPageContent() {
   const searchParams = useSearchParams();
   const [tutors, setTutors] = useState<TutorDiscovery[]>([]);
   const [loading, setLoading] = useState(true);

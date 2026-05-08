@@ -9,12 +9,13 @@ import { PreJoinModal } from "@/components/dashboard/pre-join-modal";
 import { LiveClassroom } from "@/components/dashboard/live-classroom";
 import { PaymentModal } from "@/components/dashboard/payment-modal";
 import { useAuth } from "@/lib/auth-context";
-import { apiFetch, ApiError } from "@/lib/api";
+import { apiFetch, ApiError, paymentApi } from "@/lib/api";
 import type {
   LiveClassRegistration,
   LiveClass,
   TurnCredentials,
   PaginatedResponse,
+  TutorSubscription,
 } from "@/lib/types";
 
 export default function StudentLivePage() {
@@ -24,6 +25,7 @@ export default function StudentLivePage() {
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
   const [registrations, setRegistrations] = useState<LiveClassRegistration[]>([]);
   const [publicLive, setPublicLive] = useState<LiveClass[]>([]);
+  const [subscriptions, setSubscriptions] = useState<TutorSubscription[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Pre-join / Live classroom state
@@ -37,12 +39,14 @@ export default function StudentLivePage() {
 
   // Payment modal state
   const [paymentTarget, setPaymentTarget] = useState<LiveClass | null>(null);
+  const canSelfSubscribe =
+    !(user?.is_parent_managed_child && !user.can_self_subscribe);
 
   const fetchData = useCallback(async () => {
     if (!tokens?.access) return;
     setLoading(true);
     try {
-      const [regs, live] = await Promise.all([
+      const [regs, live, subscriptionData] = await Promise.all([
         apiFetch<PaginatedResponse<LiveClassRegistration>>(
           "/students/live-classes/",
           { token: tokens.access }
@@ -50,9 +54,13 @@ export default function StudentLivePage() {
         apiFetch<PaginatedResponse<LiveClass>>("/courses/live-classes/", {
           token: tokens.access,
         }),
+        paymentApi.getMySubscriptions(tokens.access),
       ]);
       setRegistrations(regs.results);
       setPublicLive(live.results);
+      setSubscriptions(
+        Array.isArray(subscriptionData) ? subscriptionData : subscriptionData.results ?? []
+      );
     } catch {
       toast.error("Failed to load live classes.");
     } finally {
@@ -62,7 +70,10 @@ export default function StudentLivePage() {
   }, [tokens?.access]);
 
   useEffect(() => {
-    fetchData();
+    const timer = window.setTimeout(() => {
+      void fetchData();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [fetchData]);
 
   // Derived data
@@ -71,9 +82,7 @@ export default function StudentLivePage() {
   const upcoming = registrations.filter(
     (r) => r.status === "scheduled" || r.status === "live"
   );
-  const past = registrations.filter(
-    (r) => r.status === "completed" && r.recording_url
-  );
+  const past = registrations.filter((r) => r.status === "completed");
 
   // Also find live classes from public list that user is NOT registered for
   const registeredIds = new Set(registrations.map((r) => r.live_class));
@@ -81,6 +90,13 @@ export default function StudentLivePage() {
   const unregisteredUpcoming = publicLive.filter(
     (lc) => (lc.status === "scheduled" || lc.status === "live") && !registeredIds.has(lc.id)
   );
+
+  function hasTutorSubscription(tutorId: number) {
+    return subscriptions.some(
+      (subscription) =>
+        subscription.tutor === tutorId && subscription.is_currently_active
+    );
+  }
 
   const handleRegister = async (liveClassId: number) => {
     if (!tokens?.access) return;
@@ -239,7 +255,7 @@ export default function StudentLivePage() {
           }`}
           onClick={() => setTab("past")}
         >
-          Past Recordings
+          Completed Sessions
         </button>
       </div>
 
@@ -333,21 +349,31 @@ export default function StudentLivePage() {
                     {!lc.is_free && " · Subscription required"}
                   </div>
                 </div>
-                {lc.is_free ? (
+                {lc.is_free || hasTutorSubscription(lc.tutor) ? (
                   <Button
                     variant="primary"
                     size="sm"
                     onClick={() => handleRegister(lc.id)}
                   >
-                    {lc.status === "live" ? "Join Free" : "Register"}
+                    {lc.status === "live"
+                      ? lc.is_free
+                        ? "Join Free"
+                        : "Join with Subscription"
+                      : lc.is_free
+                      ? "Register"
+                      : "Register"}
                   </Button>
-                ) : (
+                ) : canSelfSubscribe ? (
                   <Button
                     variant="accent"
                     size="sm"
                     onClick={() => setPaymentTarget(lc)}
                   >
                     {lc.status === "live" ? "Join with Subscription" : "Subscribe to Join"}
+                  </Button>
+                ) : (
+                  <Button variant="secondary" size="sm" disabled>
+                    Managed by Parent
                   </Button>
                 )}
               </div>
@@ -362,7 +388,7 @@ export default function StudentLivePage() {
           {past.length === 0 && (
             <div className="text-center py-12 text-neutral-400">
               <PlayCircle className="w-8 h-8 mx-auto mb-3" />
-              <div className="text-sm font-medium">No recordings yet</div>
+              <div className="text-sm font-medium">No completed sessions yet</div>
             </div>
           )}
           {past.map((rec) => (
@@ -383,18 +409,23 @@ export default function StudentLivePage() {
                   })}
                 </div>
               </div>
-              <Button
-                variant="outline-v"
-                size="sm"
-                onClick={() => {
-                  if (rec.recording_url) {
-                    window.open(rec.recording_url, "_blank");
-                  }
-                }}
-              >
-                <Play className="w-3 h-3" />
-                Watch
-              </Button>
+              <div className="flex items-center gap-2">
+                <Badge variant={rec.completed_session ? "green" : "neutral"}>
+                  {rec.completed_session ? "Completed" : "Missed"}
+                </Badge>
+                {rec.recording_url ? (
+                  <Button
+                    variant="outline-v"
+                    size="sm"
+                    onClick={() => {
+                      window.open(rec.recording_url, "_blank");
+                    }}
+                  >
+                    <Play className="w-3 h-3" />
+                    Watch
+                  </Button>
+                ) : null}
+              </div>
             </div>
           ))}
         </div>

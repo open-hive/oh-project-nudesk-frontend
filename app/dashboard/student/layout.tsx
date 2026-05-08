@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import {
@@ -18,27 +18,8 @@ import { Topbar } from "@/components/dashboard/topbar";
 import { AuthGuard } from "@/components/auth-guard";
 import { ProfileEditModal } from "@/components/dashboard/profile-edit-modal";
 import { useAuth } from "@/lib/auth-context";
-
-const sections: SidebarSection[] = [
-  {
-    title: "Main",
-    links: [
-      { label: "Overview", href: "/dashboard/student", icon: LayoutDashboard },
-      { label: "Discover Tutors", href: "/dashboard/student/tutors", icon: Users },
-      { label: "My Courses", href: "/dashboard/student/courses", icon: PlayCircle },
-      { label: "Live Classes", href: "/dashboard/student/live", icon: Video, badge: "2" },
-      { label: "Study Guides", href: "/dashboard/student/guides", icon: BookOpen },
-      { label: "Certificates", href: "/dashboard/student/certificates", icon: Award },
-      { label: "Progress", href: "/dashboard/student/progress", icon: BarChart2 },
-    ],
-  },
-  {
-    title: "Account",
-    links: [
-      { label: "Settings", href: "/dashboard/student/settings", icon: Settings },
-    ],
-  },
-];
+import { apiFetch } from "@/lib/api";
+import type { Notification, PaginatedResponse } from "@/lib/types";
 
 const titleMap: Record<string, string> = {
   "/dashboard/student": "Overview",
@@ -58,8 +39,83 @@ export default function StudentDashboardLayout({
 }) {
   const pathname = usePathname();
   const title = titleMap[pathname] || "Dashboard";
-  const { user, profile, logout } = useAuth();
+  const { user, profile, tokens, logout } = useAuth();
+  const accessToken = tokens?.access;
   const [profileOpen, setProfileOpen] = useState(false);
+  const [materialBadges, setMaterialBadges] = useState({ live: "0", guides: "0" });
+
+  useEffect(() => {
+    if (!user || user.role !== "student" || !accessToken) return;
+    let cancelled = false;
+
+    async function loadMaterialBadges() {
+      try {
+        const [scheduledLive, legacyLive, guides] = await Promise.all([
+          apiFetch<PaginatedResponse<Notification>>(
+            "/notifications/?is_read=false&type=new_live_class_scheduled&limit=1",
+            { token: accessToken }
+          ),
+          apiFetch<PaginatedResponse<Notification>>(
+            "/notifications/?is_read=false&type=live_class_created&limit=1",
+            { token: accessToken }
+          ),
+          apiFetch<PaginatedResponse<Notification>>(
+            "/notifications/?is_read=false&type=new_study_guide_published&limit=1",
+            { token: accessToken }
+          ),
+        ]);
+        if (cancelled) return;
+        const liveCount = scheduledLive.count + legacyLive.count;
+        setMaterialBadges({
+          live: liveCount > 0 ? String(liveCount) : "0",
+          guides: guides.count > 0 ? String(guides.count) : "0",
+        });
+      } catch {
+        if (!cancelled) setMaterialBadges({ live: "0", guides: "0" });
+      }
+    }
+
+    void loadMaterialBadges();
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, pathname, user]);
+
+  const sections: SidebarSection[] = useMemo(() => {
+    const canUseStudentSubscriptions =
+      !(user?.is_parent_managed_child && !user.can_self_subscribe);
+
+    return [
+      {
+        title: "Main",
+        links: [
+          { label: "Overview", href: "/dashboard/student", icon: LayoutDashboard },
+          ...(canUseStudentSubscriptions
+            ? [{ label: "Discover Tutors", href: "/dashboard/student/tutors", icon: Users }]
+            : []),
+          { label: "My Courses", href: "/dashboard/student/courses", icon: PlayCircle },
+          {
+            label: "Live Classes",
+            href: "/dashboard/student/live",
+            icon: Video,
+            badge: materialBadges.live !== "0" ? materialBadges.live : undefined,
+          },
+          {
+            label: "Study Guides",
+            href: "/dashboard/student/guides",
+            icon: BookOpen,
+            badge: materialBadges.guides !== "0" ? materialBadges.guides : undefined,
+          },
+          { label: "Certificates", href: "/dashboard/student/certificates", icon: Award },
+          { label: "Progress", href: "/dashboard/student/progress", icon: BarChart2 },
+        ],
+      },
+      {
+        title: "Account",
+        links: [{ label: "Settings", href: "/dashboard/student/settings", icon: Settings }],
+      },
+    ];
+  }, [materialBadges.guides, materialBadges.live, user]);
 
   const displayName = profile?.first_name && profile?.last_name
     ? `${profile.first_name} ${profile.last_name}`

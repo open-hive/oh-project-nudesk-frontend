@@ -136,11 +136,59 @@ export async function apiUpload<T>(
   return res.json();
 }
 
+function extractFilename(contentDisposition: string | null) {
+  if (!contentDisposition) return null;
+
+  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(utf8Match[1]);
+  }
+
+  const basicMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+  return basicMatch?.[1] ?? null;
+}
+
+export async function apiDownload(
+  endpoint: string,
+  options: { token?: string } = {}
+): Promise<{ blob: Blob; filename: string | null }> {
+  const { token } = options;
+
+  const doFetch = (authToken?: string) =>
+    fetch(`${API_URL}${endpoint}`, {
+      headers: authToken
+        ? { Authorization: `Bearer ${authToken}` }
+        : undefined,
+    });
+
+  let res = await doFetch(token);
+
+  if (res.status === 401 && token) {
+    const newAccess = await tryRefresh();
+    if (newAccess) {
+      res = await doFetch(newAccess);
+    } else if (_onForceLogout) {
+      _onForceLogout();
+    }
+  }
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError(res.status, body);
+  }
+
+  return {
+    blob: await res.blob(),
+    filename: extractFilename(res.headers.get("content-disposition")),
+  };
+}
+
 // ── Parent API ────────────────────────────────────────────────────────────────
 
 import type {
   AdminTutorPaymentConfig,
   ParentDashboard,
+  ParentPreference,
   ParentChildLink,
   ChildSummary,
   ChildDetail,
@@ -149,6 +197,7 @@ import type {
   LearningActivityRecord,
   LiveClassRegistration,
   ParentTransaction,
+  ParentLearningPathItem,
   PaginatedResponse,
   CheckoutResponse,
   ChildInviteInfo,
@@ -163,6 +212,16 @@ import type {
 export const parentApi = {
   getDashboard: (token: string) =>
     apiFetch<ParentDashboard>("/parents/dashboard/", { token }),
+
+  getPreferences: (token: string) =>
+    apiFetch<ParentPreference>("/parents/preferences/", { token }),
+
+  updatePreferences: (token: string, payload: Partial<ParentPreference>) =>
+    apiFetch<ParentPreference>("/parents/preferences/", {
+      token,
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
 
   getChildren: (token: string) =>
     apiFetch<ChildSummary[]>("/parents/children/", { token }),
@@ -198,10 +257,34 @@ export const parentApi = {
       { token }
     ),
 
+  registerChildInLiveClass: (token: string, childId: number, liveClassId: number) =>
+    apiFetch<LiveClassRegistration>(
+      `/parents/children/${childId}/live-classes/register/`,
+      {
+        token,
+        method: "POST",
+        body: JSON.stringify({ live_class_id: liveClassId }),
+      }
+    ),
+
   getChildStudyGuides: (token: string, childId: number) =>
     apiFetch<PaginatedResponse<StudyGuideAccess>>(
       `/parents/children/${childId}/study-guides/`,
       { token }
+    ),
+
+  grantChildStudyGuideAccess: (
+    token: string,
+    childId: number,
+    studyGuideSlug: string
+  ) =>
+    apiFetch<StudyGuideAccess>(
+      `/parents/children/${childId}/study-guides/access/`,
+      {
+        token,
+        method: "POST",
+        body: JSON.stringify({ study_guide_slug: studyGuideSlug }),
+      }
     ),
 
   getChildCertificates: (token: string, childId: number) =>
@@ -273,6 +356,56 @@ export const parentApi = {
       token,
       method: "POST",
       body: JSON.stringify(payload),
+    }),
+
+  getLearningPath: (
+    token: string,
+    params?: { child?: number; assignee_type?: "child" | "self"; tutor?: number }
+  ) => {
+    const query = new URLSearchParams();
+    if (params?.child != null) query.set("child", String(params.child));
+    if (params?.assignee_type) query.set("assignee_type", params.assignee_type);
+    if (params?.tutor != null) query.set("tutor", String(params.tutor));
+    const qs = query.toString();
+    return apiFetch<PaginatedResponse<ParentLearningPathItem>>(
+      `/parents/learning-path/${qs ? `?${qs}` : ""}`,
+      { token }
+    );
+  },
+
+  createLearningPathItem: (
+    token: string,
+    payload: {
+      assignee_type: "child" | "self";
+      child_id?: number | null;
+      course_id?: number;
+      study_guide_id?: number;
+      live_class_id?: number;
+      scheduled_for: string;
+      notes?: string;
+    }
+  ) =>
+    apiFetch<ParentLearningPathItem>("/parents/learning-path/", {
+      token,
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  updateLearningPathItem: (
+    token: string,
+    itemId: number,
+    payload: Partial<ParentLearningPathItem> & { child_id?: number | null }
+  ) =>
+    apiFetch<ParentLearningPathItem>(`/parents/learning-path/${itemId}/`, {
+      token,
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+
+  deleteLearningPathItem: (token: string, itemId: number) =>
+    apiFetch<void>(`/parents/learning-path/${itemId}/`, {
+      token,
+      method: "DELETE",
     }),
 };
 
