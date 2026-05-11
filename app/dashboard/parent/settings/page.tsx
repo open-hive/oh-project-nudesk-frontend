@@ -140,7 +140,9 @@ export default function ParentSettingsPage() {
     if (!subscription) return;
 
     const confirmCancel = window.confirm(
-      `Cancel ${subscription.tutor_name}'s subscription for ${subscription.student_name}? Access will stay active until ${new Date(
+      `Cancel ${subscription.tutor_name}'s subscription${
+        subscription.is_assigned ? ` for ${subscription.student_name}` : ""
+      }? Access will stay active until ${new Date(
         subscription.current_period_end
       ).toLocaleDateString("en-ZA")}.`
     );
@@ -373,8 +375,8 @@ export default function ParentSettingsPage() {
               <div>
                 <div className="text-[.9rem] font-bold">Tutor Subscriptions</div>
                 <p className="text-sm text-neutral-500 mt-1">
-                  Cancel a child&apos;s subscription here when you want it to stop
-                  renewing.
+                  Cancel subscriptions here, whether they are already assigned to a
+                  child or still waiting to be assigned.
                 </p>
               </div>
               <Badge variant="violet">{subscriptions.length}</Badge>
@@ -410,7 +412,9 @@ export default function ParentSettingsPage() {
                             {subscription.tutor_name}
                           </div>
                           <div className="text-xs text-neutral-500 mt-1 truncate">
-                            For {subscription.student_name}
+                            {subscription.is_assigned
+                              ? `For ${subscription.student_name}`
+                              : "Not assigned to a child yet"}
                           </div>
                         </div>
                         <Badge
@@ -471,9 +475,13 @@ export default function ParentSettingsPage() {
 
                       <p className="mt-3 text-xs text-neutral-500 leading-5">
                         {isActive
-                          ? "This subscription is still renewing for the child until you cancel it."
+                          ? subscription.is_assigned
+                            ? "This subscription is still renewing for the child until you cancel it."
+                            : "This subscription is active on your account and can be assigned to a child later."
                           : isCancelled
-                          ? "Cancellation is already scheduled, and the child keeps access until the current paid period ends."
+                          ? subscription.is_assigned
+                            ? "Cancellation is already scheduled, and the child keeps access until the current paid period ends."
+                            : "Cancellation is already scheduled, and this unassigned subscription stays active until the current paid period ends."
                           : "This subscription has already ended."}
                       </p>
 

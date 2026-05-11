@@ -59,14 +59,19 @@ export default function ParentPaymentsPage() {
   }, [tokens, selectedChildId]);
 
   useEffect(() => {
-    load();
+    const id = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [load]);
 
   const totalSpent = transactions
     .filter((t) => t.status === "completed")
     .reduce((sum, t) => sum + parseFloat(t.amount), 0);
   const visibleSubscriptions = subscriptions.filter((subscription) =>
-    selectedChildId === "all" ? true : subscription.student === selectedChildId
+    selectedChildId === "all"
+      ? true
+      : subscription.student === selectedChildId || subscription.student == null
   );
   const activeSubscriptions = visibleSubscriptions.filter(
     (subscription) => subscription.is_currently_active
@@ -166,7 +171,9 @@ export default function ParentPaymentsPage() {
                       {subscription.tutor_name}
                     </div>
                     <div className="text-xs text-neutral-500 truncate">
-                      {subscription.student_name}
+                      {subscription.is_assigned
+                        ? subscription.student_name
+                        : "Unassigned child"}
                     </div>
                   </div>
                   <Badge variant={subscription.is_currently_active ? "green" : "neutral"}>

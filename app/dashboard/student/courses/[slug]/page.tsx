@@ -22,7 +22,6 @@ import { useAuth } from "@/lib/auth-context";
 import { apiFetch, ApiError } from "@/lib/api";
 import type {
   EnrollmentDetail,
-  ModuleProgress,
   CourseDetail,
   CourseModule,
   PaginatedResponse,
@@ -109,13 +108,21 @@ function PlayerInner({ slug }: { slug: string }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tokens, slug]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      void fetchData();
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [fetchData]);
 
   // Reset quiz state when active module changes
   useEffect(() => {
-    setQuizQuestions([]);
-    setQuizAnswers({});
-    setQuizResult(null);
+    const id = window.setTimeout(() => {
+      setQuizQuestions([]);
+      setQuizAnswers({});
+      setQuizResult(null);
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [activeModuleId]);
 
   // Load quiz questions when module with quiz type is active
@@ -123,11 +130,14 @@ function PlayerInner({ slug }: { slug: string }) {
     if (!activeModuleId || !tokens?.access || !course || !enrollment) return;
     const mod = course.modules.find((m) => m.id === activeModuleId);
     if (!mod || !getTypes(mod).includes("quiz")) return;
-    setQuizLoading(true);
-    apiFetch<QuizQuestion[]>(`/courses/${slug}/modules/${activeModuleId}/quiz/`, { token: tokens.access })
-      .then((qs) => setQuizQuestions(qs))
-      .catch(() => setQuizQuestions([]))
-      .finally(() => setQuizLoading(false));
+    const id = window.setTimeout(() => {
+      setQuizLoading(true);
+      apiFetch<QuizQuestion[]>(`/courses/${slug}/modules/${activeModuleId}/quiz/`, { token: tokens.access })
+        .then((qs) => setQuizQuestions(qs))
+        .catch(() => setQuizQuestions([]))
+        .finally(() => setQuizLoading(false));
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [activeModuleId, tokens, course, enrollment, slug]);
 
   // Time heartbeat
@@ -262,7 +272,6 @@ function PlayerInner({ slug }: { slug: string }) {
               const isActive = m.id === activeModuleId;
               const done = mp?.is_completed;
               const types = getTypes(m);
-              const FirstIcon = typeIconMap[types[0]] || BookOpen;
               return (
                 <button
                   key={m.id}
@@ -527,11 +536,4 @@ function PlayerInner({ slug }: { slug: string }) {
     </div>
   );
 }
-
-const typeIcon: Record<string, React.ElementType> = {
-  video: Video,
-  reading: FileText,
-  document: FileText,
-  quiz: BookOpen,
-};
 

@@ -258,6 +258,9 @@ export interface Notification {
   title: string;
   message: string;
   is_read: boolean;
+  related_user?: number | null;
+  related_course?: number | null;
+  related_live_class?: number | null;
   created_at: string;
 }
 
@@ -789,7 +792,7 @@ export interface ParentLearningPathItem {
 export interface TutorSubscription {
   id: number;
   reference: string;
-  student: number;
+  student: number | null;
   student_email: string;
   student_name: string;
   payer: number | null;
@@ -805,6 +808,7 @@ export interface TutorSubscription {
   current_period_end: string;
   cancelled_at: string | null;
   is_currently_active: boolean;
+  is_assigned: boolean;
   plan: SubscriptionPlan | null;
   created_at: string;
   updated_at: string;

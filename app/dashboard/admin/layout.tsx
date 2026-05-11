@@ -47,7 +47,10 @@ export default function AdminDashboardLayout({
       .then((d) =>
         setCounts({
           applications: d.pending_tutor_applications,
-          content: d.pending_courses + d.pending_study_guides,
+          content:
+            d.pending_courses +
+            d.pending_study_guides +
+            d.pending_live_classes,
         })
       )
       .catch(() => {});

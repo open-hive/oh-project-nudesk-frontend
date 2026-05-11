@@ -57,10 +57,15 @@ function getActiveSubscriptionsForChild(
   childId: number | null
 ) {
   if (!childId) return [];
-  return subscriptions.filter(
+  const assigned = subscriptions.filter(
     (subscription) =>
       subscription.student === childId && subscription.is_currently_active
   );
+  const unassigned = subscriptions.filter(
+    (subscription) =>
+      subscription.student == null && subscription.is_currently_active
+  );
+  return [...assigned, ...unassigned];
 }
 
 function resolveInitialTutorId(args: {
@@ -184,28 +189,38 @@ function ParentAccessPageContent() {
   const tutorOptions = useMemo(() => {
     const byTutor = new Map<
       number,
-      { tutorId: number; label: string; reference: string | null; isInactive: boolean }
+      {
+        tutorId: number;
+        label: string;
+        reference: string | null;
+        isInactive: boolean;
+        isUnassigned: boolean;
+      }
     >();
 
     for (const subscription of activeSubscriptionsForSelectedChild) {
       if (!byTutor.has(subscription.tutor)) {
         byTutor.set(subscription.tutor, {
           tutorId: subscription.tutor,
-          label: subscription.tutor_name,
+          label: subscription.is_assigned
+            ? subscription.tutor_name
+            : `${subscription.tutor_name} (ready to assign)`,
           reference: subscription.reference,
           isInactive: false,
+          isUnassigned: !subscription.is_assigned,
         });
       }
     }
 
     if (selectedTutorId && !byTutor.has(selectedTutorId)) {
-      byTutor.set(selectedTutorId, {
-        tutorId: selectedTutorId,
-        label: tutor?.tutor_name ?? "Selected tutor",
-        reference: null,
-        isInactive: true,
-      });
-    }
+        byTutor.set(selectedTutorId, {
+          tutorId: selectedTutorId,
+          label: tutor?.tutor_name ?? "Selected tutor",
+          reference: null,
+          isInactive: true,
+          isUnassigned: false,
+        });
+      }
 
     return Array.from(byTutor.values());
   }, [activeSubscriptionsForSelectedChild, selectedTutorId, tutor?.tutor_name]);
@@ -619,6 +634,8 @@ function ParentAccessPageContent() {
   }
 
   const hasActiveSubscriptions = activeSubscriptionsForSelectedChild.length > 0;
+  const activeSubscriptionNeedsAssignment =
+    !!activeSubscription && !activeSubscription.is_assigned;
   const selectedTutorName =
     tutor?.tutor_name ??
     activeSubscription?.tutor_name ??
@@ -772,7 +789,9 @@ function ParentAccessPageContent() {
                 </p>
               </div>
               {activeSubscription ? (
-                <Badge variant="green">Active</Badge>
+                <Badge variant={activeSubscriptionNeedsAssignment ? "amber" : "green"}>
+                  {activeSubscriptionNeedsAssignment ? "Ready to assign" : "Active"}
+                </Badge>
               ) : !selectedChild ? (
                 <Badge variant="neutral">Choose child</Badge>
               ) : !selectedTutorId && hasActiveSubscriptions ? (
@@ -788,7 +807,11 @@ function ParentAccessPageContent() {
               <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
                 <div className="rounded-xl border border-neutral-200 p-3">
                   <div className="text-[.7rem] uppercase tracking-[0.08em] text-neutral-400">Beneficiary</div>
-                  <div className="mt-1 text-sm font-bold text-neutral-900">{selectedChild?.first_name ?? "Child"}</div>
+                  <div className="mt-1 text-sm font-bold text-neutral-900">
+                    {activeSubscription.is_assigned
+                      ? selectedChild?.first_name ?? "Child"
+                      : "Assign on first material"}
+                  </div>
                 </div>
                 <div className="rounded-xl border border-neutral-200 p-3">
                   <div className="text-[.7rem] uppercase tracking-[0.08em] text-neutral-400">Billing</div>
@@ -803,13 +826,19 @@ function ParentAccessPageContent() {
                   </div>
                 </div>
               </div>
+            ) : null}
+
+            {activeSubscriptionNeedsAssignment ? (
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-neutral-700">
+                This subscription is active on your parent account. The first course, guide, or live session you assign from this tutor will attach the subscription to {selectedChild?.first_name ?? "this child"} automatically.
+              </div>
             ) : !selectedChild ? (
               <div className="mt-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
                 Choose a child first, then this page will pull the right tutor library and assignment tools into view.
               </div>
             ) : !selectedTutorId && hasActiveSubscriptions ? (
               <div className="mt-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
-                {selectedChild.first_name} already has access to one or more tutor subscriptions. Pick a tutor library from the dropdown above to manage assignments for that subscription.
+                Pick a tutor library from the dropdown above to manage what {selectedChild.first_name} should receive next. Any unassigned subscription will attach to this child the first time you assign material.
               </div>
             ) : !hasActiveSubscriptions ? (
               <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">

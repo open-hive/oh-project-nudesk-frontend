@@ -101,9 +101,27 @@ export default function ParentBrowsePage() {
   function hasTutorSubscription(course: Course, childId: number) {
     return subscriptions.some(
       (subscription) =>
-        subscription.student === childId &&
+        (subscription.student === childId || subscription.student == null) &&
         subscription.tutor === course.tutor &&
         subscription.is_currently_active
+    );
+  }
+
+  function matchingSubscription(course: Course, childId: number) {
+    return (
+      subscriptions.find(
+        (item) =>
+          item.student === childId &&
+          item.tutor === course.tutor &&
+          item.is_currently_active
+      ) ??
+      subscriptions.find(
+        (item) =>
+          item.student == null &&
+          item.tutor === course.tutor &&
+          item.is_currently_active
+      ) ??
+      null
     );
   }
 
@@ -136,6 +154,15 @@ export default function ParentBrowsePage() {
 
   function openEnroll(course: Course) {
     setSelectedCourse(course);
+    if (children.length === 0) {
+      if (course.is_free) {
+        toast.error("Invite or link a child first to enroll them.");
+        return;
+      }
+      setSelectedChild(null);
+      setPayOpen(true);
+      return;
+    }
     if (children.length === 1) {
       const child = children[0];
       setSelectedChild(child);
@@ -166,13 +193,10 @@ export default function ParentBrowsePage() {
         return;
       }
       if (hasTutorSubscription(selectedCourse, selectedChild.child_id)) {
-        const subscription =
-          subscriptions.find(
-            (item) =>
-              item.student === selectedChild.child_id &&
-              item.tutor === selectedCourse.tutor &&
-              item.is_currently_active
-          ) ?? null;
+        const subscription = matchingSubscription(
+          selectedCourse,
+          selectedChild.child_id
+        );
         await enrollChild(selectedCourse, selectedChild);
         router.push(
           accessHref(selectedCourse, selectedChild.child_id, subscription)
@@ -295,7 +319,6 @@ export default function ParentBrowsePage() {
                   </span>
                   <button
                     onClick={() => openEnroll(course)}
-                    disabled={children.length === 0}
                     className="flex items-center gap-1.5 px-3.5 py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-[10px] text-xs font-semibold transition-colors"
                   >
                     <ShoppingCart className="w-3.5 h-3.5" />
@@ -309,7 +332,7 @@ export default function ParentBrowsePage() {
 
                 {children.length === 0 && (
                   <p className="text-[.7rem] text-neutral-400 mt-1.5">
-                    Link a child first to enroll them.
+                    Paid tutor access can be subscribed now and assigned to a child later.
                   </p>
                 )}
               </div>
@@ -462,6 +485,25 @@ export default function ParentBrowsePage() {
           plan={selectedCourse.subscription_plan}
           childId={selectedChild.child_id}
           beneficiaryLabel={`${selectedChild.first_name} ${selectedChild.last_name}`}
+        />
+      )}
+
+      {selectedCourse && !selectedChild && (
+        <PaymentModal
+          open={payOpen}
+          onClose={() => {
+            setPayOpen(false);
+            setSelectedCourse(null);
+          }}
+          onSuccess={() => {
+            toast.success("Subscription activated. Invite or link a child to start assigning content.");
+            setPayOpen(false);
+            setSelectedCourse(null);
+          }}
+          tutorId={selectedCourse.tutor}
+          tutorName={selectedCourse.tutor_name}
+          title={selectedCourse.title}
+          plan={selectedCourse.subscription_plan}
         />
       )}
     </div>

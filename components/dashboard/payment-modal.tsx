@@ -241,11 +241,6 @@ export function PaymentModal({
 
   async function handlePay() {
     if (!tokens?.access || !billingCycle) return;
-    if (isParentCheckout && resolvedChildId == null) {
-      setError("Choose which child this subscription is for.");
-      setStep("error");
-      return;
-    }
     setStep("processing");
     setProgress(0);
     setError("");
@@ -337,7 +332,7 @@ export function PaymentModal({
                 >
                   <div className="text-sm font-bold text-orange-900">Parent</div>
                   <div className="mt-1 text-xs text-neutral-500">
-                    Pay on behalf of a linked child and manage subscriptions from the parent dashboard.
+                    Pay now, then assign the tutor subscription to a linked child from the parent dashboard.
                   </div>
                 </button>
               </div>
@@ -363,12 +358,14 @@ export function PaymentModal({
                     {isParentCheckout
                       ? selectedChild
                         ? `${selectedChild.first_name} ${selectedChild.last_name}`
-                        : "Choose a child"
+                        : "Parent checkout"
                       : "Student / Child account"}
                   </div>
                   <p className="mt-1 text-xs text-neutral-500">
                     {isParentCheckout
-                      ? "The subscription will be attached to the selected child."
+                      ? resolvedChildId != null
+                        ? "The subscription will be attached to the selected child."
+                        : "You can subscribe now and assign this tutor subscription to a child later."
                       : "This subscription will unlock your learner account instantly."}
                   </p>
                 </div>
@@ -382,7 +379,7 @@ export function PaymentModal({
                       <div className="text-sm text-neutral-500">Loading linked children…</div>
                     ) : availableChildren.length === 0 ? (
                       <div className="text-sm text-neutral-600">
-                        No linked children found yet. Link a child from the parent dashboard to continue.
+                        No linked children found yet. You can still continue and assign this subscription later.
                       </div>
                     ) : (
                       <select
@@ -460,10 +457,7 @@ export function PaymentModal({
                 disabled={
                   isParentManagedStudent ||
                   !selectedPlan ||
-                  (isParentCheckout &&
-                    childId == null &&
-                    !loadingChildren &&
-                    availableChildren.length === 0)
+                  false
                 }
                 onClick={() => setStep("details")}
               >

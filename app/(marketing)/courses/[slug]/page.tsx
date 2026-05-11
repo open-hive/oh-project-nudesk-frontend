@@ -117,9 +117,28 @@ export default function CourseDetailPage({
     if (!course) return false;
     return subscriptions.some(
       (subscription) =>
-        subscription.student === childId &&
+        (subscription.student === childId || subscription.student == null) &&
         subscription.tutor === course.tutor &&
         subscription.is_currently_active
+    );
+  }
+
+  function subscriptionForChild(childId: number) {
+    if (!course) return null;
+    return (
+      subscriptions.find(
+        (item) =>
+          item.student === childId &&
+          item.tutor === course.tutor &&
+          item.is_currently_active
+      ) ??
+      subscriptions.find(
+        (item) =>
+          item.student == null &&
+          item.tutor === course.tutor &&
+          item.is_currently_active
+      ) ??
+      null
     );
   }
 
@@ -161,7 +180,12 @@ export default function CourseDetailPage({
 
     if (user.role === "parent") {
       if (children.length === 0) {
-        toast.error("Link a child first before subscribing or enrolling.");
+        if (course.is_free) {
+          toast.error("Link a child first before enrolling them.");
+          return;
+        }
+        setSelectedChild(null);
+        setSubscribeOpen(true);
         return;
       }
       if (children.length === 1) {
@@ -261,13 +285,7 @@ export default function CourseDetailPage({
         return;
       }
       if (hasTutorSubscriptionForChild(child.child_id)) {
-        const subscription =
-          subscriptions.find(
-            (item) =>
-              item.student === child.child_id &&
-              item.tutor === course.tutor &&
-              item.is_currently_active
-          ) ?? null;
+        const subscription = subscriptionForChild(child.child_id);
         setEnrolling(true);
         try {
           await enrollParentChild(child);
@@ -581,7 +599,7 @@ export default function CourseDetailPage({
             if (user?.role === "parent") {
               const childIdToEnroll = result.subscription?.student ?? selectedChild?.child_id;
               if (!childIdToEnroll) {
-                toast.error("Subscription worked, but no child was selected for enrollment.");
+                toast.success("Subscription activated. Invite or link a child to start assigning content.");
                 setSubscribeOpen(false);
                 return;
               }

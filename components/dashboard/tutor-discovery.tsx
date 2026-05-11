@@ -113,6 +113,25 @@ export function TutorDiscoveryDashboard({
           subscription.tutor === tutorId &&
           subscription.student === childId &&
           subscription.is_currently_active
+      ) ??
+      subscriptions.find(
+        (subscription) =>
+          subscription.tutor === tutorId &&
+          subscription.student == null &&
+          subscription.is_currently_active
+      ) ??
+      null
+    );
+  }
+
+  function parentUnassignedSubscriptionFor(tutorId: number) {
+    if (mode !== "parent") return null;
+    return (
+      subscriptions.find(
+        (subscription) =>
+          subscription.tutor === tutorId &&
+          subscription.student == null &&
+          subscription.is_currently_active
       ) ?? null
     );
   }
@@ -177,11 +196,6 @@ export function TutorDiscoveryDashboard({
       return;
     }
 
-    if (children.length === 0) {
-      toast.error("Link a child first before subscribing them to a tutor.");
-      return;
-    }
-
     setSelectedTutor(tutor);
     if (children.length === 1) {
       const child = children[0];
@@ -191,6 +205,12 @@ export function TutorDiscoveryDashboard({
         return;
       }
       setSelectedChild(child);
+      setPaymentTarget(tutor);
+      return;
+    }
+
+    if (children.length === 0) {
+      setSelectedChild(null);
       setPaymentTarget(tutor);
       return;
     }
@@ -227,7 +247,7 @@ export function TutorDiscoveryDashboard({
         </h2>
         <p className="text-sm text-neutral-500 mt-1">
           {mode === "parent"
-            ? "Pick a tutor, choose a child, and start a subscription that unlocks that tutor's full paid library."
+            ? "Pick a tutor and start a subscription that unlocks that tutor's full paid library for a child now or later."
             : "Search tutors by subject and subscribe from your own student account when you're ready."}
         </p>
       </div>
@@ -362,6 +382,10 @@ export function TutorDiscoveryDashboard({
                         <Button variant="secondary" size="sm" className="flex-1" disabled>
                           Subscribed
                         </Button>
+                      ) : mode === "parent" && children.length === 0 && parentUnassignedSubscriptionFor(tutor.id) ? (
+                        <Button variant="secondary" size="sm" className="flex-1" disabled>
+                          Subscribed
+                        </Button>
                       ) : (
                         <Button
                           variant="primary"
@@ -369,7 +393,6 @@ export function TutorDiscoveryDashboard({
                           className="flex-1"
                           disabled={
                             !startingPrice ||
-                            (mode === "parent" && children.length === 0) ||
                             (mode === "student" && !canUseStudentSubscriptions)
                           }
                           onClick={() => handleSubscribe(tutor)}
@@ -380,6 +403,8 @@ export function TutorDiscoveryDashboard({
                               children.length === 1 &&
                               activeSubscriptionFor(tutor.id, children[0].child_id)
                             ? "Manage Access"
+                            : mode === "parent" && children.length === 0
+                            ? "Subscribe"
                             : !canUseStudentSubscriptions
                             ? "Managed by Parent"
                             : "Subscribe"}
@@ -389,7 +414,7 @@ export function TutorDiscoveryDashboard({
 
                     {mode === "parent" && children.length === 0 ? (
                       <p className="mt-2 text-[.72rem] text-neutral-400">
-                        Link a child first to subscribe them to a tutor.
+                        You can subscribe now and assign this tutor to a child once one is linked.
                       </p>
                     ) : mode === "student" && !canUseStudentSubscriptions ? (
                       <p className="mt-2 text-[.72rem] text-neutral-400">
@@ -489,6 +514,10 @@ export function TutorDiscoveryDashboard({
                   selectedChild.child_id,
                   result.subscription?.reference ?? null
                 )
+              );
+            } else if (mode === "parent") {
+              toast.success(
+                `Subscription activated for ${paymentTarget.tutor_name}. Assign it to a child when you're ready.`
               );
             } else {
               toast.success(`Subscription activated for ${paymentTarget.tutor_name}.`);

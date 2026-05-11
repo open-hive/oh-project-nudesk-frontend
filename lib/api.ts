@@ -418,7 +418,7 @@ export const paymentApi = {
     payload: {
       tutor_id: number;
       billing_cycle: "weekly" | "monthly" | "yearly";
-      child_id?: number;
+      child_id?: number | null;
     }
   ) =>
     apiFetch<CheckoutResponse>("/payments/checkout/", {

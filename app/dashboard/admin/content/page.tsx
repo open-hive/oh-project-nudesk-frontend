@@ -145,13 +145,7 @@ export default function AdminContentPage() {
 
   useEffect(() => {
     const id = window.setTimeout(() => {
-      if (tab === "courses") {
-        void fetchCourses();
-      } else if (tab === "guides") {
-        void fetchGuides();
-      } else {
-        void fetchLiveSessions();
-      }
+      void Promise.all([fetchCourses(), fetchGuides(), fetchLiveSessions()]);
     }, 250);
     return () => window.clearTimeout(id);
   }, [tab, fetchCourses, fetchGuides, fetchLiveSessions]);

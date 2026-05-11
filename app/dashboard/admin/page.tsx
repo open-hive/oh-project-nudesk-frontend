@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth-context";
@@ -40,7 +40,7 @@ export default function AdminOverviewPage() {
 
   const stats = data
     ? [
-        { icon: <Wallet className="w-4 h-4" />, label: "GMV This Month", value: fmt(Number(data.gmv_monthly)), color: "bg-violet-50 text-violet-600" },
+        { icon: <Wallet className="w-4 h-4" />, label: "Earnings This Month", value: fmt(Number(data.gmv_monthly)), color: "bg-violet-50 text-violet-600" },
         { icon: <Users className="w-4 h-4" />, label: "Active Students", value: num(data.active_students), color: "bg-orange-50 text-orange-600" },
         { icon: <Briefcase className="w-4 h-4" />, label: "Active Tutors", value: num(data.active_tutors), color: "bg-green-50 text-green-600" },
         { icon: <UsersRound className="w-4 h-4" />, label: "Active Parents", value: num(data.active_parents), color: "bg-blue-50 text-blue-600" },
@@ -61,8 +61,18 @@ export default function AdminOverviewPage() {
         {
           icon: <FileCheck className="w-4 h-4 text-neutral-600" />,
           title: "Content Reviews",
-          desc: `${data.pending_courses} courses pending`,
-          badge: data.pending_courses > 0 ? String(data.pending_courses) : null,
+          desc: `${data.pending_courses} courses · ${data.pending_study_guides} guides · ${data.pending_live_classes} live pending`,
+          badge:
+            data.pending_courses +
+              data.pending_study_guides +
+              data.pending_live_classes >
+            0
+              ? String(
+                  data.pending_courses +
+                    data.pending_study_guides +
+                    data.pending_live_classes
+                )
+              : null,
           badgeColor: "orange" as const,
           href: "/dashboard/admin/content",
         },
@@ -72,7 +82,18 @@ export default function AdminOverviewPage() {
           desc: `${data.pending_study_guides} pending review`,
           badge: data.pending_study_guides > 0 ? String(data.pending_study_guides) : null,
           badgeColor: "amber" as const,
-          href: null,
+          href: "/dashboard/admin/content",
+        },
+        {
+          icon: <BookOpen className="w-4 h-4 text-neutral-600" />,
+          title: "Live Sessions",
+          desc: `${data.pending_live_classes} pending review`,
+          badge:
+            data.pending_live_classes > 0
+              ? String(data.pending_live_classes)
+              : null,
+          badgeColor: "violet" as const,
+          href: "/dashboard/admin/content",
         },
         {
           icon: <UsersIcon className="w-4 h-4 text-neutral-600" />,

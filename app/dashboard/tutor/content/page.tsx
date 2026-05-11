@@ -35,11 +35,11 @@ const moduleTypeMeta = {
     icon: Video,
     helper: "External lesson link or uploaded lesson video",
   },
-  reading: {
-    label: "Reading",
-    icon: BookOpen,
-    helper: "Article, notes, or supporting resource link",
-  },
+  // reading: {
+  //   label: "Reading",
+  //   icon: BookOpen,
+  //   helper: "Article, notes, or supporting resource link",
+  // },
   document: {
     label: "Document",
     icon: FileText,
@@ -156,6 +156,11 @@ export default function TutorContentPage() {
     content_url: "",
     duration_minutes: "",
   });
+  const [moduleTypeDescriptions, setModuleTypeDescriptions] = useState<Record<string, string>>({
+    video: "",
+    document: "",
+    quiz: "",
+  });
   const [moduleFormErrors, setModuleFormErrors] = useState<Record<string, string>>({});
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -192,7 +197,10 @@ export default function TutorContentPage() {
   }, [tokens]);
 
   useEffect(() => {
-    void fetchPaymentReadiness();
+    const id = window.setTimeout(() => {
+      void fetchPaymentReadiness();
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [fetchPaymentReadiness]);
 
   const fetchCourses = useCallback(async () => {
@@ -216,8 +224,7 @@ export default function TutorContentPage() {
     } finally {
       setLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tokens, courseSearch]);
+  }, [courseSearch, toast, tokens]);
 
   useEffect(() => {
     const id = window.setTimeout(() => {
@@ -247,8 +254,7 @@ export default function TutorContentPage() {
     } finally {
       setGuidesLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tokens, guideSearch]);
+  }, [guideSearch, toast, tokens]);
 
   const fetchLiveSessions = useCallback(async () => {
     if (!tokens) return;
@@ -281,7 +287,6 @@ export default function TutorContentPage() {
       }, 250);
       return () => window.clearTimeout(id);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, fetchLiveSessions]);
 
   useEffect(() => {
@@ -291,7 +296,6 @@ export default function TutorContentPage() {
       }, 250);
       return () => window.clearTimeout(id);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, fetchGuides]);
 
   async function loadMoreCourses() {
@@ -429,7 +433,8 @@ export default function TutorContentPage() {
       fd.append("price", "0.00");
       if (coverImage) fd.append("cover_image", coverImage);
       await apiUpload<TutorCourse>("/courses/my-courses/", fd, { token: tokens.access });
-      toast.success("Course created! Add modules to submit for review.");
+      toast.success("Course created successfully.");
+      toast.warning("This course is saved as a draft. Add modules to submit it for review.");
       closeWizard();
       fetchCourses();
     } catch (e) {
@@ -552,6 +557,7 @@ export default function TutorContentPage() {
   function openNewModule() {
     setEditingModule(null);
     setModuleForm({ title: "", description: "", content_types: ["video"], content_url: "", duration_minutes: "" });
+    setModuleTypeDescriptions({ video: "", document: "", quiz: "" });
     setModuleFormErrors({});
     setModuleFile(null);
     if (moduleFileRef.current) moduleFileRef.current.value = "";
@@ -572,6 +578,7 @@ export default function TutorContentPage() {
       content_url: mod.content_url,
       duration_minutes: mod.duration_minutes && mod.duration_minutes > 0 ? String(mod.duration_minutes) : "",
     });
+    setModuleTypeDescriptions({ video: "", document: "", quiz: "" });
     setModuleFormErrors({});
     setModuleFile(null);
     if (moduleFileRef.current) moduleFileRef.current.value = "";
@@ -600,15 +607,45 @@ export default function TutorContentPage() {
     setDraftQuizQuestions([]);
     setQuizEditorOpen(false);
     setEditingQuestion(null);
+    setModuleTypeDescriptions({ video: "", document: "", quiz: "" });
+  }
+
+  function buildMergedModuleDescription() {
+    const base = moduleForm.description.trim();
+    const pieces: string[] = [];
+
+    if (base) pieces.push(base);
+
+    const selected = moduleForm.content_types;
+    const sectionOrder: ModuleContentType[] = ["video", "document", "quiz"];
+    for (const type of sectionOrder) {
+      if (!selected.includes(type)) continue;
+      const raw = String(moduleTypeDescriptions[type] ?? "").trim();
+      if (!raw) continue;
+      pieces.push(`${type.charAt(0).toUpperCase() + type.slice(1)}: ${raw}`);
+    }
+
+    return pieces.join("\n\n");
   }
 
   function validateModuleForm(): boolean {
     const errors: Record<string, string> = {};
     if (!moduleForm.title.trim()) errors.title = "Title is required.";
+    if (
+      moduleForm.content_types.includes("quiz") &&
+      moduleForm.content_types.length > 1
+    ) {
+      errors.content_types =
+        "Quiz lessons must be standalone. Keep quiz in its own module.";
+    }
     if (moduleForm.content_types.includes("video") && !moduleForm.content_url.trim() && !videoFile)
       errors.content_url = "Provide a video URL or upload an MP4 file.";
     if (moduleForm.content_types.includes("document") && !editingModule && !moduleFile)
       errors.file = "Please upload a file for this module.";
+    if (moduleFile && videoFile) {
+      errors.file =
+        "Use the document upload for the document lesson, then add a video URL for the video lesson.";
+    }
     setModuleFormErrors(errors);
     return Object.keys(errors).length === 0;
   }
@@ -724,19 +761,20 @@ export default function TutorContentPage() {
 
       let saved: CourseModule;
       const contentTypeStr = moduleForm.content_types.join(",");
+      const mergedDescription = buildMergedModuleDescription();
       const needsFormData = (moduleForm.content_types.includes("document") && (moduleFile || isEdit)) ||
                             (moduleForm.content_types.includes("video") && videoFile);
 
       if (needsFormData) {
         const fd = new FormData();
         fd.append("title", moduleForm.title.trim());
-        fd.append("description", moduleForm.description.trim());
+        fd.append("description", mergedDescription);
         fd.append("content_type", contentTypeStr);
         if (moduleForm.content_url.trim()) fd.append("content_url", moduleForm.content_url.trim());
         if (moduleForm.duration_minutes) fd.append("duration_minutes", moduleForm.duration_minutes);
         if (!isEdit) fd.append("order", String(nextOrder));
         if (moduleFile) fd.append("file", moduleFile);
-        if (videoFile) fd.append("file", videoFile);
+        else if (videoFile) fd.append("file", videoFile);
         saved = await apiUpload<CourseModule>(
           isEdit
             ? `/courses/my-courses/${manageCourse.slug}/modules/${editingModule!.id}/`
@@ -754,7 +792,7 @@ export default function TutorContentPage() {
             token: tokens.access,
             body: JSON.stringify({
               title: moduleForm.title.trim(),
-              description: moduleForm.description.trim(),
+              description: mergedDescription,
               content_type: contentTypeStr,
               content_url: moduleForm.content_url.trim(),
               duration_minutes: moduleForm.duration_minutes ? Number(moduleForm.duration_minutes) : 0,
@@ -869,21 +907,13 @@ export default function TutorContentPage() {
     ...moduleTypeMeta[type],
   }));
   const hasVideoContent = moduleForm.content_types.includes("video");
-  const hasReadingContent = moduleForm.content_types.includes("reading");
   const hasDocumentContent = moduleForm.content_types.includes("document");
   const hasQuizContent = moduleForm.content_types.includes("quiz");
-  const usesSharedExternalLink = hasVideoContent || hasReadingContent;
-  const sharedLinkLabel = hasVideoContent
-    ? "Lesson Link"
-    : "Reading Link";
-  const sharedLinkPlaceholder = hasVideoContent
-    ? "https://youtube.com/watch?v=..."
-    : "https://example.com/article";
-  const sharedLinkDescription = hasVideoContent && hasReadingContent
-    ? "This one shared link supports both the video and reading parts of this module."
-    : hasVideoContent
-    ? "Use a YouTube, Vimeo, Loom, or direct lesson URL."
-    : "Add an external article, notes page, or reading resource link.";
+  const usesSharedExternalLink = hasVideoContent;
+  const sharedLinkLabel = "Lesson Link";
+  const sharedLinkPlaceholder = "https://youtube.com/watch?v=...";
+  const sharedLinkDescription =
+    "Use a YouTube, Vimeo, Loom, or direct lesson URL.";
 
   return (
     <div>
@@ -1497,9 +1527,27 @@ export default function TutorContentPage() {
               {moduleFormErrors.title && <p className="text-xs text-red-500 mt-1">{moduleFormErrors.title}</p>}
             </div>
 
-            {/* Content Types — multi-select */}
+            {/* Module Description */}
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">Content Type <span className="text-neutral-400 font-normal">(select all that apply)</span></label>
+              <label className="block text-sm font-medium text-neutral-700 mb-1">
+                Module Description <span className="text-neutral-400 font-normal">(optional)</span>
+              </label>
+              <textarea
+                className="w-full h-20 p-3 text-sm border-[1.5px] border-neutral-200 rounded-xl bg-white resize-none focus:outline-none focus:border-violet-600 focus:ring-2 focus:ring-violet-600/10"
+                placeholder="What will students learn in this module?"
+                value={moduleForm.description}
+                onChange={(e) => setModuleForm({ ...moduleForm, description: e.target.value })}
+              />
+            </div>
+
+            {/* Content Types — constrained multi-select */}
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1">
+                Content Type{" "}
+                <span className="text-neutral-400 font-normal">
+                  (video and document can combine, quiz stands alone)
+                </span>
+              </label>
               <div className="flex flex-wrap gap-2">
                 {(Object.keys(moduleTypeMeta) as ModuleContentType[]).map((ct) => {
                   const meta = moduleTypeMeta[ct];
@@ -1510,9 +1558,16 @@ export default function TutorContentPage() {
                       key={ct}
                       type="button"
                       onClick={() => {
-                        const next = isActive
-                          ? moduleForm.content_types.filter((t) => t !== ct)
-                          : [...moduleForm.content_types, ct];
+                        let next: ModuleContentType[];
+                        if (isActive) {
+                          next = moduleForm.content_types.filter((t) => t !== ct);
+                        } else if (ct === "quiz") {
+                          next = ["quiz"];
+                        } else if (moduleForm.content_types.includes("quiz")) {
+                          next = [ct];
+                        } else {
+                          next = [...moduleForm.content_types, ct];
+                        }
                         if (next.length === 0) return; // must keep at least one
                         setModuleForm({ ...moduleForm, content_types: next });
                         if (ct === "quiz" && !isActive && editingModule && tokens && manageCourse && quizQuestions.length === 0) {
@@ -1547,6 +1602,16 @@ export default function TutorContentPage() {
                   </div>
                 ))}
               </div>
+              {hasQuizContent && (
+                <p className="mt-3 text-xs text-amber-700">
+                  Quiz modules stay standalone so students get a dedicated quiz experience.
+                </p>
+              )}
+              {moduleFormErrors.content_types && (
+                <p className="mt-2 text-xs text-red-500">
+                  {moduleFormErrors.content_types}
+                </p>
+              )}
             </div>
 
             {usesSharedExternalLink && (
@@ -1558,9 +1623,9 @@ export default function TutorContentPage() {
                   <div>
                     <div className="text-sm font-semibold text-neutral-900">{sharedLinkLabel}</div>
                     <p className="mt-1 text-xs text-neutral-500">{sharedLinkDescription}</p>
-                    {hasVideoContent && hasReadingContent && (
+                    {hasVideoContent && hasDocumentContent && (
                       <p className="mt-1 text-xs text-amber-700">
-                        Need separate links for video and reading? Split them into separate modules for a cleaner student experience.
+                        If this module also includes a document, use a video URL here so the document upload can keep its own file attachment.
                       </p>
                     )}
                   </div>
@@ -1570,7 +1635,7 @@ export default function TutorContentPage() {
                   <label className="block text-sm font-medium text-neutral-700 mb-1">
                     {sharedLinkLabel}
                     <span className="text-neutral-400 font-normal">
-                      {hasVideoContent ? " (YouTube, Vimeo, Loom, or direct link)" : " (optional)"}
+                      {" (YouTube, Vimeo, Loom, or direct link)"}
                     </span>
                   </label>
                   <Input
@@ -1585,6 +1650,20 @@ export default function TutorContentPage() {
                   />
                   {moduleFormErrors.content_url && <p className="text-xs text-red-500 mt-1">{moduleFormErrors.content_url}</p>}
                 </div>
+
+                {hasVideoContent && (
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-neutral-700 mb-1">
+                      Video Description <span className="text-neutral-400 font-normal">(optional)</span>
+                    </label>
+                    <textarea
+                      className="w-full h-16 p-3 text-sm border-[1.5px] border-neutral-200 rounded-xl bg-white resize-none focus:outline-none focus:border-violet-600 focus:ring-2 focus:ring-violet-600/10"
+                      placeholder="Describe what this video covers"
+                      value={moduleTypeDescriptions.video}
+                      onChange={(e) => setModuleTypeDescriptions((prev) => ({ ...prev, video: e.target.value }))}
+                    />
+                  </div>
+                )}
 
                 {hasVideoContent && (
                   <>
@@ -1634,6 +1713,18 @@ export default function TutorContentPage() {
                     <div className="text-sm font-semibold text-neutral-900">Document Attachment</div>
                     <p className="mt-1 text-xs text-neutral-500">Upload PDFs, DOCX files, slide decks, or any downloadable handout for this module.</p>
                   </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">
+                    Document Description <span className="text-neutral-400 font-normal">(optional)</span>
+                  </label>
+                  <textarea
+                    className="w-full h-16 p-3 text-sm border-[1.5px] border-neutral-200 rounded-xl bg-white resize-none focus:outline-none focus:border-violet-600 focus:ring-2 focus:ring-violet-600/10"
+                    placeholder="Describe what students should look for in this document"
+                    value={moduleTypeDescriptions.document}
+                    onChange={(e) => setModuleTypeDescriptions((prev) => ({ ...prev, document: e.target.value }))}
+                  />
                 </div>
 
                 <label className="block text-sm font-medium text-neutral-700 mb-1">
@@ -1689,6 +1780,18 @@ export default function TutorContentPage() {
                   >
                     <Plus className="w-3 h-3" /> Add Question
                   </button>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">
+                    Quiz Description <span className="text-neutral-400 font-normal">(optional)</span>
+                  </label>
+                  <textarea
+                    className="w-full h-16 p-3 text-sm border-[1.5px] border-neutral-200 rounded-xl bg-white resize-none focus:outline-none focus:border-violet-600 focus:ring-2 focus:ring-violet-600/10"
+                    placeholder="Describe what students will be tested on"
+                    value={moduleTypeDescriptions.quiz}
+                    onChange={(e) => setModuleTypeDescriptions((prev) => ({ ...prev, quiz: e.target.value }))}
+                  />
                 </div>
                 {quizLoading ? (
                   <div className="flex items-center justify-center py-6">
@@ -1764,19 +1867,6 @@ export default function TutorContentPage() {
                 )}
               </div>
             )}
-
-            {/* Description */}
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">
-                Description <span className="text-neutral-400 font-normal">(optional)</span>
-              </label>
-              <textarea
-                className="w-full h-20 p-3 text-sm border-[1.5px] border-neutral-200 rounded-xl bg-white resize-none focus:outline-none focus:border-violet-600 focus:ring-2 focus:ring-violet-600/10"
-                placeholder="What will students learn in this module?"
-                value={moduleForm.description}
-                onChange={(e) => setModuleForm({ ...moduleForm, description: e.target.value })}
-              />
-            </div>
 
             {/* Duration */}
             <div>
